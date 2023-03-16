@@ -1,1 +1,1 @@
-# DDR2-Controller
+# DDR2 SDRAM Controller
