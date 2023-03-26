@@ -1,0 +1,8 @@
+!/rtl/*
+!/sim/*
+!README.md
+!.gitignore
+/work
+*.mti
+*.mpf
+*.wlf
