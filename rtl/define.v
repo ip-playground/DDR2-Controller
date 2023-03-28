@@ -33,5 +33,8 @@
 // `define     PRE_ALL_ADDR        13'b0_0100_0000_0000
 
 
+//ref模块
+`define     tREFI               7800
+
 
 

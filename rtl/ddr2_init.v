@@ -12,13 +12,13 @@
  */
 `include "rtl/define.v" 
 module ddr2_init(
-    input                   ck,
-    input                   rst_n,
-    output  reg             init_cke,
-    output  reg     [`BA_BITS-1:0]   init_ba,
-    output  reg     [3:0]   init_cmd,
-    output  reg     [`ADDR_BITS-1:0]  init_addr,
-    output  wire            init_end
+    input                               ck,
+    input                               rst_n,
+    output  reg                         init_cke,
+    output  reg     [`BA_BITS-1:0]      init_ba,
+    output  reg     [3:0]               init_cmd,
+    output  reg     [`ADDR_BITS-1:0]    init_addr,
+    output  wire                        init_end
 );
 
 //=============================================================================\
