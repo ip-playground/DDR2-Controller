@@ -11,7 +11,7 @@
  *******************************************************************************
  */
 `timescale 1ps / 1ps
-`include "rtl/define.v" 
+`include "../rtl/define.v" 
 module tb();
 
 reg                         ck;
@@ -37,6 +37,7 @@ initial begin
     rst_n <= 1'b1;
     #400000000;
 end
+
 
 ddr2_top ddr2_top_inst (
     .ck                     (ck),

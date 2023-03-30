@@ -10,19 +10,19 @@
  *
  *******************************************************************************
  */
-`include "rtl/define.v"
+`include "define.v"
 module ddr2_top(
     input                               ck,
     input                               rst_n,
     output  wire                        ddr2_ck,
     output  wire                        ddr2_ck_n,
     output  wire                        ddr2_cke,
-    output  reg                         ddr2_cs_n,
-    output  reg                         ddr2_we_n,
-    output  reg                         ddr2_ras_n,
-    output  reg                         ddr2_cas_n,
-    output  reg    [`BA_BITS-1:0]       ddr2_ba,
-    output  reg    [`ADDR_BITS-1:0]     ddr2_addr
+    output  wire                         ddr2_cs_n,
+    output  wire                         ddr2_we_n,
+    output  wire                         ddr2_ras_n,
+    output  wire                         ddr2_cas_n,
+    output  wire    [`BA_BITS-1:0]       ddr2_ba,
+    output  wire    [`ADDR_BITS-1:0]     ddr2_addr
     // inout           [15:0]  ddr2_dq,
     // inout           [1:0]   ddr2_dqs,
     // inout           [1:0]   ddr2_dqs_n,
@@ -56,48 +56,96 @@ wire                            aref_end;
 
 
 //arbit
+// always @(posedge ck or negedge rst_n) begin
+//     if(!rst_n)
+//         state <= INIT;
+//     else begin
+//         case (state) 
+//             INIT:   begin
+//                 if(init_end)
+//                     state <= IDLE;
+//                 else
+//                     state <= INIT;
+//             end
+//             IDLE:   begin
+//                 if(aref_en)
+//                     state <= AREF;
+//                 else
+//                     state <= IDLE;
+//             end
+//             AREF:   begin
+//                 if(aref_end)
+//                     state <= IDLE;
+//                 else
+//                     state <= AREF;
+//             end
+//             default:state <= INIT;
+//         endcase 
+//     end
+// end
+
+reg [12:0] addr;
+reg [3:0]   cmd;
+reg [2:0]   ba;
+
+always @(*) begin
+    if (addr != ddr2_addr)
+        $display("?????");
+end
+
 always @(posedge ck or negedge rst_n) begin
-    if(!rst_n)
+    if(!rst_n) begin
         state <= INIT;
+        addr <= init_addr;
+    end
     else begin
         case (state) 
             INIT:   begin
-                if(init_end)
+                if(init_end) 
                     state <= IDLE;
-                else
+                else  begin
                     state <= INIT;
+                    addr <= init_addr;
+                end
             end
             IDLE:   begin
-                if(aref_en)
+                if(aref_en) begin
                     state <= AREF;
-                else
-                    state <= IDLE;
+                    addr <= aref_addr;
+                end
             end
             AREF:   begin
                 if(aref_end)
                     state <= IDLE;
-                else
-                    state <= AREF;
             end
             default:state <= INIT;
         endcase 
     end
 end
 
-always @(state) begin
-    case(state)
-        INIT:   begin
-            {ddr2_cs_n,ddr2_ras_n,ddr2_cas_n,ddr2_we_n} = init_cmd;
-            ddr2_ba = init_ba;
-            ddr2_addr = init_addr;
-        end
-        AREF:   begin
-            {ddr2_cs_n,ddr2_ras_n,ddr2_cas_n,ddr2_we_n} = aref_cmd;
-            // ddr2_ba = init_ba;
-            ddr2_addr = aref_addr;
-        end
-    endcase
-end
+// assign ddr2_addr = init_addr;
+// assign {ddr2_cs_n,ddr2_ras_n,ddr2_cas_n,ddr2_we_n} = cmd;
+// assign ddr2_ba = ba;
+
+// always @(*) begin
+//     case(state)
+//         INIT:   begin
+//             {ddr2_cs_n,ddr2_ras_n,ddr2_cas_n,ddr2_we_n} = init_cmd;
+//             ddr2_ba = init_ba;
+//             addr = init_addr;
+//         end
+//         AREF:   begin
+//             {ddr2_cs_n,ddr2_ras_n,ddr2_cas_n,ddr2_we_n} = aref_cmd;
+//             ddr2_ba = init_ba;
+//             addr = aref_addr;
+//         end
+//     endcase
+// end
+
+
+assign {ddr2_cs_n,ddr2_ras_n,ddr2_cas_n,ddr2_we_n} = state == INIT ? init_cmd : aref_cmd;
+assign ddr2_addr = state == INIT ? init_addr : aref_addr;
+assign ddr2_ba = init_ba;
 
 always @(posedge ck or negedge rst_n) begin
     if(!rst_n)

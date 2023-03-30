@@ -11,7 +11,7 @@
  *******************************************************************************
  */
 
- `include "rtl/define.v" 
+ `include "define.v" 
 
  module ddr2_ref(
     input                               ck,

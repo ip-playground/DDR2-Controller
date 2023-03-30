@@ -10,7 +10,7 @@
  *
  *******************************************************************************
  */
-`include "rtl/define.v" 
+`include "define.v" 
 module ddr2_init(
     input                               ck,
     input                               rst_n,
