@@ -14,4 +14,4 @@ add wave -divider {ddr2_top}
 add wave tb/ddr2_top_inst/*
 
 
-run 300900ns
+run 310000ns
