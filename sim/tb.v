@@ -25,8 +25,8 @@ wire                        ddr2_ras_n;
 wire                        ddr2_we_n;
 wire    [`BA_BITS-1:0]      ddr2_ba;
 wire    [`ADDR_BITS-1:0]    ddr2_addr;
-wire    [1:0]               ddr2_dqm;
-wire    [15:0]              ddr2_dq;
+wire    [`DM_BITS-1:0]      ddr2_dqm;
+wire    [`DQ_BITS-1:0]      ddr2_dq;
 
 always #2500 ck = ~ck;
 

@@ -14,13 +14,13 @@
 `define BA_BITS                3
 
 //x16
-`define ADDR_BITS               13 // Address Bits
-`define ROW_BITS                13 // Number of Address bits
+`define ADDR_BITS               14 // Address Bits
+`define ROW_BITS                14 // Number of Address bits
 `define COL_BITS                10 // Number of Column bits
-`define DM_BITS                 2 // Number of Data Mask bits
-`define DQ_BITS                 16 // Number of Data bits
-`define DQS_BITS                2 // Number of Dqs bits
-`define TRRD                    10000 // tRRD   Active bank a to Active bank b command time
+`define DM_BITS                 1 // Number of Data Mask bits
+`define DQ_BITS                 8 // Number of Data bits
+`define DQS_BITS                1 // Number of Dqs bits
+`define TRRD                    750 // tRRD   Active bank a to Active bank b command time
 
 //init模块
 `define     tCK                 5               

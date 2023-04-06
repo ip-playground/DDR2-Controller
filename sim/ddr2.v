@@ -142,7 +142,7 @@ module ddr2 (
 
     // `include "ddr2_parameters.v"
     // `define sg25E
-    // `define x16
+    // `define x8
     parameter TCK_MIN          =    2500; // tCK    ps    Minimum Clock Cycle Time
     parameter TJIT_PER         =     100; // tJIT(per)  ps Period JItter
     parameter TJIT_DUTY        =     100; // tJIT(duty) ps Half Period Jitter
@@ -173,7 +173,7 @@ module ddr2 (
     parameter TAXPD            =      10; // tAXPD  tCK   ODT power-down exit latency
     parameter CL_TIME          =   12500; // CL     ps    Minimum CAS Latency
 
-    parameter TFAW             =   45000; // tFAW  ps     Four Bank Activate window
+    parameter TFAW             =   35000; // tFAW  ps     Four Bank Activate window
 
     parameter AL_MIN           =       0; // AL     tCK   Minimum Additive Latency
     parameter AL_MAX           =       6; // AL     tCK   Maximum Additive Latency
@@ -226,13 +226,13 @@ module ddr2 (
     // Power Down
     parameter TCKE             =       3; // tCKE   tCK   CKE minimum high or low pulse width
 
-    parameter ADDR_BITS        =      13; // Address Bits
-    parameter ROW_BITS         =      13; // Number of Address bits
+    parameter ADDR_BITS        =      14; // Address Bits
+    parameter ROW_BITS         =      14; // Number of Address bits
     parameter COL_BITS         =      10; // Number of Column bits
-    parameter DM_BITS          =       2; // Number of Data Mask bits
-    parameter DQ_BITS          =      16; // Number of Data bits
-    parameter DQS_BITS         =       2; // Number of Dqs bits
-    parameter TRRD             =   10000; // tRRD   Active bank a to Active bank b command time
+    parameter DM_BITS          =       1; // Number of Data Mask bits
+    parameter DQ_BITS          =       8; // Number of Data bits
+    parameter DQS_BITS         =       1; // Number of Dqs bits
+    parameter TRRD             =    7500; // tRRD   Active bank a to Active bank b command time
 
    // Size Parameters
     parameter BA_BITS          =       3; // Set this parmaeter to control how many Bank Address bits
