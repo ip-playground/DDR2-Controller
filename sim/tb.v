@@ -36,6 +36,7 @@ initial begin
     repeat(4) @(posedge ck);
     rst_n <= 1'b1;
     #400000000;
+    $finish(0);
 end
 
 
