@@ -10,7 +10,7 @@
  *
  *******************************************************************************
  */
-`include "define.v" 
+`include "/home/caoshiyang/ddr2/DDR2-Controller/rtl/define.v"
 module ddr2_init(
     input                               ck,
     input                               rst_n,
@@ -50,6 +50,7 @@ integer             cnt_500ns;
 integer             cnt_cmd;
 wire                flag_end_300us; 
 wire                flag_end_500ns;
+reg                 init_cke_p;
 
 always @(posedge ck or negedge rst_n) begin
     if(!rst_n)
@@ -63,10 +64,15 @@ assign flag_end_300us = cnt_300us >= DELAY_300US ? 1'b1 : 1'b0;
 
 //cke这块暂时不知道后续怎么处理，此处仅是对于镁光手册的波形实现
 always @(posedge ck or negedge rst_n) begin
-    if(!rst_n)
+    if(!rst_n) begin
         init_cke <= 1'b0;
-    else if(flag_end_300us)
-        init_cke <= 1'b1;
+        init_cke_p <= 1'b0;
+    end
+    else if(flag_end_300us) begin
+        init_cke_p <= 1'b1;
+        init_cke <= init_cke_p;
+
+    end
 end
 
 
@@ -113,6 +119,6 @@ always @(posedge ck or negedge rst_n) begin
     end
 end
 
-assign init_end = cnt_cmd > LM7 ? 1'b1 : 1'b0;
+assign init_end = cnt_cmd > LM7+1 ? 1'b1 : 1'b0;
 
 endmodule

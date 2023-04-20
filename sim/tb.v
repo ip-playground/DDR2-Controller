@@ -39,8 +39,13 @@ initial begin
     $finish(0);
 end
 
+initial begin
+    $dumpfile("tb.fsdb");
+    $dumpvars(0,tb);
+end
 
-ddr2_top ddr2_top_inst (
+
+ddr2_ctrl ddr2_ctrl_inst (
     .ck                     (ck),
     .rst_n                  (rst_n),
     .ddr2_ck                (ddr2_ck),

@@ -33,4 +33,4 @@ wave:
 
 .PHONY : clean
 clean :
-	rm -rf csrc simv.daidir simv ucli.key vcdplus.vpd DVEfiles INCA_libs asic_top.fsdb* *.log verdi_config_file novas.* verdiLog
+	rm -rf csrc simv.daidir simv ucli.key vcdplus.vpd DVEfiles INCA_libs asic_top.fsdb* *.log verdi_config_file novas.rc verdiLog
