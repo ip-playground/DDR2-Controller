@@ -179,7 +179,7 @@ reg                             ddr2_w_burst_23;
 reg          [`DQ_BITS-1:0]     dq_pre;
 reg          [`DQ_BITS-1:0]     dq;
 reg                             dqs_pre;
-reg                             dqs;
+wire                             dqs;
 reg                             dqm_pre;
 reg                             dqm;
 
@@ -215,8 +215,15 @@ always @(posedge ck) begin
   ddr2_w_burst_23 <= ddr2_w_burst_01;
 end
 
+reg  [5:0] time_after_cmd_wr;
+always @(posedge ck) begin
+  if(w_cnt == 'd0) time_after_cmd_wr <= 'd0;
+  else if(time_after_cmd_wr < 'd20) time_after_cmd_wr <= time_after_cmd_wr + 'd1;
+end
+
 always @(posedge ck2) begin
-  if(ddr2_w_burst_01 || ddr2_w_burst_23) begin
+  // if(ddr2_w_burst_01 || ddr2_w_burst_23) begin 
+  if(time_after_cmd_wr >= 'd4 && time_after_cmd_wr <= awlen + 'd3) begin
     dq_pre <= ck ? wdata_l : wdata_h;
     dqm_pre <= 0;
     dqs_pre <= ck;
@@ -233,15 +240,16 @@ always @(posedge ck2) begin
   if(!rst_n) begin
     dq <= 'dz;
     dqm <= 'dz;
-    dqs <= 'dz;
+    // dqs <= 'dz;
   end
   else begin
     dq <= dq_pre;
     dqm <= dqm_pre;
-    dqs <= dqs_pre;
+   // dqs <= dqs_pre;
   end
 end
 
+assign dqs = time_after_cmd_wr >= 'd4 && time_after_cmd_wr <= 'd12 ? ck : 'dz;
 assign ddr2_dq = dq;
 assign ddr2_dqs = dqs;
 assign ddr2_dqs_n = !dqs;
@@ -306,19 +314,19 @@ always @(posedge ck or negedge rst_n) begin
 
             STATE_WRITE:    begin
                 //暂时将其突发设为4,设死
-                if(w_cnt == awlen + WL + WR - 1 + `tRPA/`tCK) begin
+                if(w_cnt == awlen + WL + WR +`tRPA/`tCK) begin
                     state <= STATE_IDLE;
                     mark <= 2'b11; 
                     bvalid <= 1'b1;
                   end
-                else if(w_cnt == awlen + WL + WR - 1) begin
+                else if(w_cnt == awlen + WL + WR ) begin
                     cmd <= PRE;
                     addr <= ALLPRE_ADDR;
                     mark <= 2'b10;  
                 end else if((w_cnt < awlen)&&(w_cnt[0]==1'b0)) begin
                     cmd <= WRITE;
+                    // cmd <= w_cnt == 'd0 ? WRITE : NOP;
                     addr <= {init_col_addr + w_cnt >>1,2'b0};
-										$display("===============addr=%d===========", addr);
                     mark <= 2'b01;
                 end else cmd <= NOP;    
                 w_cnt <= w_cnt + 1;

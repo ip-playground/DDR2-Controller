@@ -15,8 +15,8 @@ module axi_master #(
     parameter           ADDR_WIDTH  = `ROW_BITS + `COL_BITS + `BA_BITS,
     parameter           DATA_WIDTH  = `DQ_BITS * 2,
     parameter           DATA_LEVEL  = 2,
-    parameter   [7:0]   WBURST_LEN   = 8'd7,
-    parameter   [7:0]   RBURST_LEN   = 8'd7 
+    parameter   [7:0]   WBURST_LEN   = 8'd8,
+    parameter   [7:0]   RBURST_LEN   = 8'd8 
 )(
     input   wire                        rstn,
     input   wire                        clk,
