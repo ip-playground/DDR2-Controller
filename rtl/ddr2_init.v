@@ -12,7 +12,7 @@
  */
 `include "/home/caoshiyang/ddr2/DDR2-Controller/rtl/define.v"
 module ddr2_init(
-    input                               ck,
+    input                               clk,
     input                               rst_n,
     output  reg                         init_cke,
     output  reg     [`BA_BITS-1:0]      init_ba,
@@ -53,7 +53,7 @@ wire                flag_end_300us;
 wire                flag_end_500ns;
 reg                 init_cke_p;
 
-always @(posedge ck or negedge rst_n) begin
+always @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         cnt_300us <= 0;
     else if(flag_end_300us == 1'b0)
@@ -64,7 +64,7 @@ assign flag_end_300us = cnt_300us >= DELAY_300US ? 1'b1 : 1'b0;
 
 
 //cke这块暂时不知道后续怎么处理，此处仅是对于镁光手册的波形实现
-always @(posedge ck or negedge rst_n) begin
+always @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
         init_cke <= 1'b0;
         init_cke_p <= 1'b0;
@@ -78,7 +78,7 @@ end
 
 
 //需要在前面300us过后，也即等待时钟稳定后
-always @(posedge ck or negedge rst_n) begin
+always @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         cnt_500ns <= 0;
     else if(flag_end_300us == 1'b1 && flag_end_500ns == 1'b0)
@@ -87,14 +87,14 @@ end
 
 assign  flag_end_500ns = cnt_500ns >= DELAY_500NS ? 1'b1 : 1'b0;
 
-always @(posedge ck or negedge rst_n) begin
+always @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         cnt_cmd <= 1'b0;
     else if(flag_end_500ns == 1'b1 && init_end == 1'b0)
         cnt_cmd <= cnt_cmd + 1;
 end
 
-always @(posedge ck or negedge rst_n) begin
+always @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
         init_cmd <= NOP;
         init_addr <= 0;
