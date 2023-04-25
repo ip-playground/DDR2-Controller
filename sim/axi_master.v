@@ -12,11 +12,11 @@
 `include "../rtl/define.v" 
 
 module axi_master #(
-    parameter           ADDR_WIDTH  = `ROW_BITS + `COL_BITS + `BA_BITS;
-    parameter           DATA_WIDTH  = `DQ_BITS * 2;
-    parameter           DATA_LEVEL  = 2;
-    parameter   [7:0]   WBUST_LEN   = 8'd7;  
-    parameter   [7:0]   RBUST_LEN   = 8'd7;  
+    parameter           ADDR_WIDTH  = `ROW_BITS + `COL_BITS + `BA_BITS,
+    parameter           DATA_WIDTH  = `DQ_BITS * 2,
+    parameter           DATA_LEVEL  = 2,
+    parameter   [7:0]   WBURST_LEN   = 8'd7,
+    parameter   [7:0]   RBURST_LEN   = 8'd7 
 )(
     input   wire                        rstn,
     input   wire                        clk,
@@ -28,7 +28,7 @@ module axi_master #(
     output  wire                        wvalid,
     input   wire                        wready,
     output  wire                        wlast,
-    output  wire    [DATA_WIDTH-1:0]    wdata,
+    output  reg     [DATA_WIDTH-1:0]    wdata,
     input   wire                        bvalid,
     output  wire                        bready
 
@@ -47,9 +47,10 @@ reg     [2:0]   state;
 reg     [3:0]   w_cnt;
 
 assign awvalid = state == AW;
-assign awlen   = WBUST_LEN;
-assign wdata   = (DATA_WIDTH)'(awaddr);
+assign awlen   = WBURST_LEN;
 assign wlast   = w_cnt == awlen;
+assign wvalid  = state == W;
+assign bready  = 1'b1;
 
 always@(posedge clk or negedge rstn) begin
     if(!rstn) begin
@@ -67,13 +68,16 @@ always@(posedge clk or negedge rstn) begin
                    w_cnt <= 8'd0;
             end
             W:begin
-                awaddr <= awaddr + (ADDR_WIDTH)'(1<<DATA_LEVEL);
                 if(wlast)
-                    state <= B;
-                w_cnt <= w_cnt + 1;
+                  state <= B;
+                if(wready) begin
+                  w_cnt <= w_cnt + 1;
+                  wdata <= w_cnt;
+                end
             end
             B:begin
-                if (bvalid) state <= AW;
+              if (bvalid) 
+                state <= AW;
             end
         endcase
 

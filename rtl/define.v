@@ -33,8 +33,10 @@
 // `define     PRE_ALL_ADDR        13'b0_0100_0000_0000
 
 
+
 //ref模块
 `define     tREFI               7800
+
 
 
 //Active
@@ -46,3 +48,4 @@
 //Write
 `define     CL                  3       //速率400                  
 `define     BL                  4
+`define     tWR                 15

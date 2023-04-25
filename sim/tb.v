@@ -14,8 +14,28 @@
 `include "../rtl/define.v" 
 module tb();
 
-reg                         ck;
-reg                         rst_n;
+parameter           ADDR_WIDTH  = `ROW_BITS + `COL_BITS + `BA_BITS;
+parameter           DATA_WIDTH  = `DQ_BITS * 2;
+parameter           DATA_LEVEL  = 2;
+parameter   [7:0]   WBURST_LEN   = 8'd7;  
+parameter   [7:0]   RBURST_LEN   = 8'd7;  
+
+wire                         ck;
+reg                         ck800m;
+wire                         rst_n;
+reg                         rstn_async;
+
+wire                        awvalid;
+wire                        awready;
+wire     [ADDR_WIDTH-1:0]    awaddr;
+wire    [           7:0]    awlen;
+wire                        wvalid;
+wire                        wready;
+wire                        wlast;
+wire    [DATA_WIDTH-1:0]    wdata;
+wire                        bvalid;
+wire                        bready;
+
 wire                        ddr2_ck;
 wire                        ddr2_ck_n;
 wire                        ddr2_cke;
@@ -27,15 +47,24 @@ wire    [`BA_BITS-1:0]      ddr2_ba;
 wire    [`ADDR_BITS-1:0]    ddr2_addr;
 wire    [`DM_BITS-1:0]      ddr2_dqm;
 wire    [`DQ_BITS-1:0]      ddr2_dq;
+wire    [`DQS_BITS-1:0]     ddr2_dqs;
+wire    [`DQS_BITS-1:0]     ddr2_dqs_n;
 
-always #2500 ck = ~ck;
+
+always #625 ck800m = ~ck800m;
+
+reg w_trig;
 
 initial begin
-    ck <= 1'b1;
-    rst_n <= 1'b0;
-    repeat(4) @(posedge ck);
-    rst_n <= 1'b1;
+    ck800m <= 1'b1;
+    rstn_async <= 1'b0;
+    repeat(4) @(posedge ck800m);
+    rstn_async <= 1'b1;
     #400000000;
+    w_trig <= 1'b1;
+    #15000;
+    w_trig <= 1'b0;
+    #150000;
     $finish(0);
 end
 
@@ -44,10 +73,43 @@ initial begin
     $dumpvars(0,tb);
 end
 
+axi_master #(
+    .ADDR_WIDTH     ( ADDR_WIDTH     ),
+    .DATA_WIDTH     ( DATA_WIDTH     ),
+    .DATA_LEVEL     ( DATA_LEVEL    ),
+    .WBURST_LEN     ( WBURST_LEN  ),
+    .RBURST_LEN     ( RBURST_LEN  )
+) axi_master_inst (
+    .rstn                   (rst_n),
+    .clk                    (ck),
+    .w_trig                 (w_trig),
+    .awvalid                (awvalid),
+    .awready                (awready),
+    .awaddr                 (awaddr),
+    .awlen                  (awlen),
+    .wvalid                 (wvalid),
+    .wready                 (wready),
+    .wlast                  (wlast),
+    .wdata                  (wdata),
+    .bvalid                 (bvalid),
+    .bready                 (bready)
+);
 
 ddr2_ctrl ddr2_ctrl_inst (
     .ck                     (ck),
+    .ck800m                 (ck800m),
     .rst_n                  (rst_n),
+    .rstn_async             (rstn_async),
+    .awvalid                (awvalid),
+    .awready                (awready),
+    .awaddr                 (awaddr),
+    .awlen                  (awlen),
+    .wvalid                 (wvalid),
+    .wready                 (wready),
+    .wlast                  (wlast),
+    .wdata                  (wdata),
+    .bvalid                 (bvalid),
+    .bready                 (bready),
     .ddr2_ck                (ddr2_ck),
     .ddr2_ck_n              (ddr2_ck_n),
     .ddr2_cke               (ddr2_cke),
@@ -56,7 +118,11 @@ ddr2_ctrl ddr2_ctrl_inst (
     .ddr2_ras_n             (ddr2_ras_n),
     .ddr2_we_n              (ddr2_we_n),
     .ddr2_ba                (ddr2_ba),
-    .ddr2_addr              (ddr2_addr)
+    .ddr2_addr              (ddr2_addr),
+    .ddr2_dq                (ddr2_dq),
+    .ddr2_dqm               (ddr2_dqm),
+    .ddr2_dqs               (ddr2_dqs),
+    .ddr2_dqs_n             (ddr2_dqs_n)
 );
 
 ddr2 ddr2_inst(
@@ -69,11 +135,11 @@ ddr2 ddr2_inst(
     .we_n                   (ddr2_we_n),
     .ba                     (ddr2_ba),
     .addr                   (ddr2_addr),
-    .dq                     (),
-    .dqs                    (),
-    .dqs_n                  (),
+    .dq                     (ddr2_dq),
+    .dm_rdqs                (ddr2_dqm),
+    .dqs                    (ddr2_dqs),
+    .dqs_n                  (ddr2_dqs_n),
     .rdqs_n                 (),
-    .dm_rdqs                (),
     .odt                    ()
 );
 
