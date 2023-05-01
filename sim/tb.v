@@ -54,17 +54,18 @@ wire     [`DQS_BITS-1:0]    ddr2_dqs_n;
 always #625 clk800m = ~clk800m;
 
 reg w_trig;
+wire init_end;
 
 initial begin
     clk800m <= 1'b1;
     rstn_async <= 1'b0;
     repeat(4) @(posedge clk800m);
     rstn_async <= 1'b1;
-    #400000000;
+    #309000000;
     w_trig <= 1'b1;
     #15000;
     w_trig <= 1'b0;
-    #150000;
+    // #15000000;
     $finish(0);
 end
 
@@ -83,6 +84,7 @@ axi_master #(
     .rstn                   (rst_n),
     .clk                    (clk),
     .w_trig                 (w_trig),
+    .init_end               (init_end),
     .awvalid                (awvalid),
     .awready                (awready),
     .awaddr                 (awaddr),
@@ -100,6 +102,7 @@ ddr2_ctrl ddr2_ctrl_inst (
     .clk800m                (clk800m),
     .rst_n                  (rst_n),
     .rstn_async             (rstn_async),
+    .init_end               (init_end),
     .awvalid                (awvalid),
     .awready                (awready),
     .awaddr                 (awaddr),

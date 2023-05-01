@@ -1024,6 +1024,7 @@ module ddr2 (
                         end
                     end
                     ACTIVATE : begin
+                        $display ("------------------INFO: %s cmd %d bank %d row %h---------------------", cmd_string[cmd],cmd, bank, addr);
                         if (`BANKS == 8) begin
                             tfaw_cntr = 0;
                             for (i=0; i<`BANKS; i=i+1) begin

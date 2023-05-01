@@ -20,6 +20,7 @@ module axi_master #(
 )(
     input   wire                        rstn,
     input   wire                        clk,
+    input   wire                        init_end,
     input   wire                        w_trig,
     output  wire                        awvalid,
     input   wire                        awready,
@@ -48,19 +49,45 @@ reg     [3:0]   w_cnt;
 
 assign awvalid = state == AW;
 assign awlen   = WBURST_LEN;
-assign wlast   = w_cnt == awlen;
+assign wlast   = w_cnt == awlen+1;
 assign wvalid  = state == W;
 assign bready  = 1'b1;
 
+
+parameter   delay_wr_gap = 10;
+integer  cnt_wr_gap;
+reg         wr_req; 
+always @(posedge clk or negedge rstn) begin
+    if(!rstn) 
+        cnt_wr_gap <= 'd0;
+    else if( cnt_wr_gap >= delay_wr_gap) 
+        cnt_wr_gap <= 'd0;        
+    else if(init_end)
+        cnt_wr_gap <= cnt_wr_gap + 'd1;
+        
+end
+
+//每隔100ns请求一次写请求，被允许后置低
+always @(posedge clk or negedge rstn) begin
+    if(!rstn) 
+        wr_req <= 1'b0;
+    else if(state == INIT && wr_req == 1'b1) 
+        wr_req <= 1'b0;
+    else if(cnt_wr_gap >= delay_wr_gap) 
+        wr_req <= 1'b1;   
+end
+
 always@(posedge clk or negedge rstn) begin
     if(!rstn) begin
-       awaddr <= 'd0;
+       awaddr <= 'd16;
        w_cnt <= 'd0;
        state <= INIT;
+       wdata <= 'd0;
     end else begin
         case(state)
             INIT:begin
-                if(w_trig)
+                // if(w_trig) 
+                if(wr_req)
                     state <= AW;
             end
             AW:  if(awready)begin
@@ -68,16 +95,17 @@ always@(posedge clk or negedge rstn) begin
                    w_cnt <= 8'd0;
             end
             W:begin
+                w_cnt <= w_cnt + 1;
                 if(wlast)
                   state <= B;
-                if(wready) begin
-                  w_cnt <= w_cnt + 1;
+                else if(wready) 
                   wdata <= w_cnt;
-                end
             end
             B:begin
-              if (bvalid) 
-                state <= AW;
+                if (bvalid) begin 
+                    awaddr <= awaddr + 'd16;
+                    state <= INIT;
+                end
             end
         endcase
 

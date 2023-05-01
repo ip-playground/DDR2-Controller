@@ -17,6 +17,7 @@ module ddr2_ctrl(
     output  reg                                         rst_n,
     input   wire                                        clk800m,
     input   wire                                        rstn_async,
+    output  wire                                        init_end,
 
     input   wire                                        awvalid,
     output  wire                                        awready,
@@ -93,8 +94,9 @@ always @ (posedge clk or negedge rstn_aclk)
 localparam  STATE_INIT      =   5'b0_0001;
 localparam  STATE_IDLE      =   5'b0_0011;
 localparam  STATE_AREF      =   5'b0_0010;
-localparam  STATE_WRACT     =   5'b0_0111;
-localparam  STATE_WRITE     =   5'b0_0110;
+localparam  STATE_WRITE     =   5'b0_0111;
+localparam  STATE_WRWAIT    =   5'b0_0110;
+localparam  STATE_PRE       =   5'b0_0100;
 localparam  STATE_READ      =   5'b1_0000;
 
 reg         [4:0]               state;//暂时写为5位
@@ -112,7 +114,7 @@ localparam  ACT             =   4'b0011;
 // -------------------------------------------------------------------------------------
 //   init
 // -------------------------------------------------------------------------------------
-wire                            init_end;
+// wire                            init_end; 
 wire        [`BA_BITS-1:0]      init_ba;
 wire        [`ADDR_BITS-1:0]    init_addr;
 wire        [3:0]               init_cmd;
@@ -122,6 +124,7 @@ wire                            init_cke;
 // -------------------------------------------------------------------------------------
 reg                             aref_req;
 integer                         cnt_tREFI;
+reg         [7:0]               ref_cnt;
 
 localparam  DELAY_tREFI     =   `tREFI/`tCK;
 localparam  RPA             =   `tRPA/`tCK;
@@ -152,12 +155,13 @@ end
 //   write
 // -------------------------------------------------------------------------------------
 
-assign awready = state == STATE_IDLE && aref_req == 1'b0;
-assign wready = state == STATE_WRITE;
 
-reg         [`COL_BITS-1:0]     init_col_addr;
+
+reg         [`COL_BITS-3:0]     init_col_addr;
 reg         [`COL_BITS-1:0]     col_addr;
 reg                   [5:0]     w_cnt;
+reg                   [5:0]     wrwait_cnt;
+reg                   [5:0]     rp_cnt;
 
 reg        [`DQ_BITS*2-1:0]     wdata_1;
 reg        [`DQ_BITS*2-1:0]     wdata_2;
@@ -183,7 +187,8 @@ always @(posedge clk) begin
     wdata_1 <= 'd0;
     wdata_2 <= 'd0;
     wdata_3 <= 'd0;
-  end else if(state == WRITE) begin
+  end else if(state == STATE_WRITE) begin
+  // end else begin
     wdata_1 <= wdata;
     wdata_2 <= wdata_1;
     wdata_3 <= wdata_2;
@@ -195,13 +200,13 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-  if(!rst_n) time_after_cmd_wr <= 'd0;
-  else if(w_cnt == 'd0) time_after_cmd_wr <= 'd0;
-  else if(time_after_cmd_wr < 'd20) time_after_cmd_wr <= time_after_cmd_wr + 'd1;
+  if(!rst_n) time_after_cmd_wr <= 'd9;
+  else if(w_cnt == 'd5) time_after_cmd_wr <= 'd0;
+  else if(time_after_cmd_wr < 'd9) time_after_cmd_wr <= time_after_cmd_wr + 'd1;
 end
 
 always @(posedge clk2) begin
-  if(time_after_cmd_wr >= 'd4 && time_after_cmd_wr <= awlen + 'd3) begin
+  if(time_after_cmd_wr >= 'd0 && time_after_cmd_wr <= 'd7) begin
     dq_pre <= clk ? wdata_l : wdata_h;
     dqm_pre <= 0;
   end else begin
@@ -222,8 +227,10 @@ always @(posedge clk2) begin
   end
 end
 
-assign dqs = time_after_cmd_wr >= 'd4 && time_after_cmd_wr <= 'd12 ? clk : 'dz;
-assign dqs_n = time_after_cmd_wr >= 'd4 && time_after_cmd_wr <= 'd12 ? !clk : 'dz;
+assign dqs = time_after_cmd_wr >= 'd0 && time_after_cmd_wr <= 'd8 ? clk : 'dz;
+assign dqs_n = time_after_cmd_wr >= 'd0 && time_after_cmd_wr <= 'd8 ? !clk : 'dz;
+// assign dqs = dqm == 'd0 ? clk : 'dz;
+// assign dqs_n = dqm == 'd0 ? !clk : 'dz;
 assign ddr2_dq = dq;
 assign ddr2_dqs = dqs;
 assign ddr2_dqs_n = dqs_n;
@@ -235,12 +242,23 @@ assign ddr2_dqm = dqm;
 
 reg         [`ADDR_BITS-1:0]    addr;
 reg         [`BA_BITS-1:0]      ba;
-reg         [7:0]               cnt;
+reg         [`ROW_BITS-1:0]     row_addr;
+wire                            wr_to_wr;
+wire                            same_ba_col;
+assign same_ba_col = (ba == awaddr[`BA_BITS + `ROW_BITS+`COL_BITS-1:`COL_BITS + `ROW_BITS])
+                     && (row_addr == awaddr[`ROW_BITS+`COL_BITS-1:`COL_BITS]);
+
+assign wr_to_wr = aref_req == 1'b0 && awvalid == 1'b1 && same_ba_col == 1'b1;
+
+assign awready = aref_req == 1'b0 && (state == STATE_IDLE || (state == STATE_WRWAIT && same_ba_col == 1'b1)
+                                                          || (state == STATE_WRITE && same_ba_col == 1'b1));
+assign wready = state == STATE_WRITE;
+
 
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
         state <= STATE_INIT;
-        cnt <= 8'd0;
+        ref_cnt <= 8'd0;
         cmd <= NOP;
         addr <= 0;
         ba <= 0 ;
@@ -252,26 +270,25 @@ always @(posedge clk or negedge rst_n) begin
             STATE_INIT:   if(init_end)   state <= STATE_IDLE;
 
             STATE_IDLE:   begin
-                
-                cnt <= 8'd0;
-
                 if(aref_req)   begin 
                     state <= STATE_AREF;
                     cmd <= NOP;
-                  end
+                    ref_cnt <= 8'd0;
+                end
                 else if(awvalid)    begin 
-                w_cnt <= 6'd0;
-                cmd <= ACT;
-                {ba, addr} <= awaddr[`BA_BITS+`ROW_BITS+`COL_BITS-1:`COL_BITS];
-                init_col_addr <= awaddr[`COL_BITS-1:0];
-                state <= STATE_WRITE;
+                    w_cnt <= 6'd0;
+                    cmd <= ACT;
+                    {ba, addr} <= awaddr[`BA_BITS+`ROW_BITS+`COL_BITS-1:`COL_BITS];
+                    row_addr <= awaddr[`ROW_BITS+`COL_BITS-1:`COL_BITS];
+                    init_col_addr <= awaddr[`COL_BITS-1:2];
+                    state <= STATE_WRITE;
                 end else 
                     cmd <= NOP;
             end
 
             STATE_AREF:   begin   
-                cnt <= cnt + 8'd1;
-                case(cnt)
+                ref_cnt <= ref_cnt + 8'd1;
+                case(ref_cnt)
                     0:          begin cmd <= PRE; addr <= ALLPRE_ADDR;end
                     RPA:        cmd <= AREF;
                     RPA+RFC:    state <= STATE_IDLE;
@@ -279,25 +296,69 @@ always @(posedge clk or negedge rst_n) begin
                 endcase
             end
 
-            STATE_WRACT:    begin
-                bvalid <= 1'b0;
+            STATE_WRITE: begin
+                // 暂时没有后续写请求    
+                if (w_cnt > awlen + WL) begin
+                    state <= STATE_WRWAIT;
+                    wrwait_cnt <= 'd0;
+                    cmd <= NOP;
+                    w_cnt <= w_cnt + 1;
+                end
+                //下一次写请求到来，且在同一bank、row
+                // 需要等到前面的 cmd 、wdata,等 都给到后续信号才响应 
+                else if(w_cnt > awlen) begin
+                    if(wr_to_wr) begin                
+                        w_cnt <= 'd0; 
+                        init_col_addr <= awaddr[`COL_BITS-1:2];
+                    end
+                    else w_cnt <= w_cnt + 1;
+                end
+                else begin
+                    if(w_cnt[0] == 1'b1)  begin
+                        cmd <= WRITE;
+                        // cmd <= w_cnt == 'd0 ? WRITE : NOP;
+                        addr <= {init_col_addr + (w_cnt >> 1), 2'b0};
+                    end
+                    else cmd <= NOP;
+                    w_cnt <= w_cnt + 1;
+                end 
+                bvalid <= w_cnt == awlen + 1;
             end
+            
 
-            STATE_WRITE:    begin
-                //暂时将其突发设为4,设死
-                if(w_cnt == awlen + WL + WR +`tRPA/`tCK) begin
-                    state <= STATE_IDLE;
-                    bvalid <= 1'b1;
-                  end
-                else if(w_cnt == awlen + WL + WR ) begin
+            STATE_WRWAIT: begin
+                if(wrwait_cnt < WR)
+                    wrwait_cnt <= wrwait_cnt + 1'b1;
+                // cmd <= NOP;
+                //写请求到来，且同一bank,row,不需要写恢复
+                if(wr_to_wr) begin
+                    state <= STATE_WRITE;
+                    w_cnt <= 'd0;
+                    init_col_addr <= awaddr[`COL_BITS-1:2];
+                end
+                //读请求到来,同一～，需要写恢复
+                //需要等待tWTR时间后
+                // else if(wr_to_rd) begin
+                //     state <= STATE_WRTORD;
+                // end
+                
+                // 读/写请求不在同一bank/row、刷新请求到来，需要写恢复
+                else if((awvalid == 1'b1 || aref_req == 1'b1 ) && (wrwait_cnt == WR)) begin
+                    state <= STATE_PRE;
+                    rp_cnt <= 'd0;
                     cmd <= PRE;
                     addr <= ALLPRE_ADDR;
-                end else if((w_cnt < awlen)&&(w_cnt[0]==1'b0)) begin
-                    cmd <= WRITE;
-                    addr <= {init_col_addr + w_cnt >>1,2'b0};
-                end else cmd <= NOP;    
-                w_cnt <= w_cnt + 1;
+                end
             end
+
+            STATE_PRE: begin
+                rp_cnt <= rp_cnt + 1;
+                cmd <= NOP;
+                if(rp_cnt >= `tRPA/`tCK) begin
+                    state <= STATE_IDLE;
+                end
+            end
+
         endcase 
     end
 end
@@ -318,7 +379,7 @@ assign  ddr2_cke = init_cke;
 
 
 ddr2_init ddr2_init_inst(
-    .clk                         (clk),
+    .clk                        (clk),
     .rst_n                      (rst_n),
     .init_cke                   (init_cke),
     .init_ba                    (init_ba),
