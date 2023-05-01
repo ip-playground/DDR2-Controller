@@ -8,3 +8,5 @@
 *.wlf
 */work
 wlftwb6jse
+/run/*
+!/run/Makefile

@@ -10,8 +10,8 @@ view wave
 view structure
 view signals
 
-add wave -divider {ddr2_top}
-add wave tb/ddr2_top_inst/*
+add wave -divider {ddr2_ctrl}
+add wave tb/ddr2_ctrl_inst/*
 
 
 run 310000ns
