@@ -91,12 +91,16 @@ always @ (posedge clk or negedge rstn_aclk)
 
 
 //state
-localparam  STATE_INIT      =   5'b0_0001;
-localparam  STATE_IDLE      =   5'b0_0011;
+localparam  STATE_INIT      =   5'b0_0000;
+localparam  STATE_IDLE      =   5'b0_0001;
 localparam  STATE_AREF      =   5'b0_0010;
+localparam  STATE_PRE       =   5'b0_0011;
+
 localparam  STATE_WRITE     =   5'b0_0111;
+localparam  STATE_WRDATA    =   5'b0_0101;
+localparam  STATE_WRITE2    =   5'b0_0100;
 localparam  STATE_WRWAIT    =   5'b0_0110;
-localparam  STATE_PRE       =   5'b0_0100;
+
 localparam  STATE_READ      =   5'b1_0000;
 
 reg         [4:0]               state;//暂时写为5位
@@ -187,7 +191,7 @@ always @(posedge clk) begin
     wdata_1 <= 'd0;
     wdata_2 <= 'd0;
     wdata_3 <= 'd0;
-  end else if(state == STATE_WRITE) begin
+  end else if(state == STATE_WRITE || state == STATE_WRDATA) begin
   // end else begin
     wdata_1 <= wdata;
     wdata_2 <= wdata_1;
@@ -229,8 +233,6 @@ end
 
 assign dqs = time_after_cmd_wr >= 'd0 && time_after_cmd_wr <= 'd8 ? clk : 'dz;
 assign dqs_n = time_after_cmd_wr >= 'd0 && time_after_cmd_wr <= 'd8 ? !clk : 'dz;
-// assign dqs = dqm == 'd0 ? clk : 'dz;
-// assign dqs_n = dqm == 'd0 ? !clk : 'dz;
 assign ddr2_dq = dq;
 assign ddr2_dqs = dqs;
 assign ddr2_dqs_n = dqs_n;
@@ -296,36 +298,69 @@ always @(posedge clk or negedge rst_n) begin
                 endcase
             end
 
+            // STATE_WRITE: begin
+            //     // 暂时没有后续写请求    
+            //     if (w_cnt > awlen + WL) begin
+            //         state <= STATE_WRWAIT;
+            //         wrwait_cnt <= 'd0;
+            //         cmd <= NOP;
+            //         w_cnt <= w_cnt + 1;
+            //     end
+                //下一次写请求到来，且在同一bank、row
+                // 需要等到前面的 cmd 、wdata,等 都给到后续信号才响应 
+                // else if(w_cnt > awlen) begin
+                //     if(wr_to_wr) begin                
+                //         w_cnt <= 'd0; 
+                //         init_col_addr <= awaddr[`COL_BITS-1:2];
+                //         state <= STATE_WRITE;
+                //     end
+                //     else w_cnt <= w_cnt + 1;
+                // end
+                // else begin
+                //     if(w_cnt[0] == 1'b1)  begin
+                //         cmd <= WRITE;
+                //         // cmd <= w_cnt == 'd0 ? WRITE : NOP;
+                //         addr <= {init_col_addr + (w_cnt >> 1), 2'b0};
+                //     end
+                //     else cmd <= NOP;
+                //     w_cnt <= w_cnt + 1;
+                // end 
+            // end 
+
             STATE_WRITE: begin
-                // 暂时没有后续写请求    
+                w_cnt <= w_cnt + 1;
+                if(w_cnt == awlen + 1) state <= STATE_WRDATA;
+                else if(wvalid) begin
+                    if(w_cnt[0] == 1'b1) begin
+                        cmd <= WRITE;
+                        addr <= {init_col_addr + (w_cnt >> 1), 2'b0};
+                    end else
+                        cmd <= NOP;
+                end
+                bvalid <= w_cnt == awlen + 1;
+            end
+
+            // ------------------------------------------------------------------------------------------
+            // 1、下一次写请求到来，且在同一bank、row, 需要等到前面的 cmd 、wdata,等 都给到，后续信号才响应 
+            // 2、在写数据完全传输到总线上后，转为另一等待状态，
+            // 3、这一等待状态可以接收更多其他请求
+            // ------------------------------------------------------------------------------------------
+            STATE_WRDATA: begin
+                if(wr_to_wr) begin          
+                    w_cnt <= 'd0; 
+                    init_col_addr <= awaddr[`COL_BITS-1:2];
+                    state <= STATE_WRITE;
+                end else
+                    w_cnt <= w_cnt + 1;
                 if (w_cnt > awlen + WL) begin
                     state <= STATE_WRWAIT;
                     wrwait_cnt <= 'd0;
-                    cmd <= NOP;
-                    w_cnt <= w_cnt + 1;
                 end
-                //下一次写请求到来，且在同一bank、row
-                // 需要等到前面的 cmd 、wdata,等 都给到后续信号才响应 
-                else if(w_cnt > awlen) begin
-                    if(wr_to_wr) begin                
-                        w_cnt <= 'd0; 
-                        init_col_addr <= awaddr[`COL_BITS-1:2];
-                    end
-                    else w_cnt <= w_cnt + 1;
-                end
-                else begin
-                    if(w_cnt[0] == 1'b1)  begin
-                        cmd <= WRITE;
-                        // cmd <= w_cnt == 'd0 ? WRITE : NOP;
-                        addr <= {init_col_addr + (w_cnt >> 1), 2'b0};
-                    end
-                    else cmd <= NOP;
-                    w_cnt <= w_cnt + 1;
-                end 
-                bvalid <= w_cnt == awlen + 1;
             end
-            
 
+            // ------------------------------------------------------------------------------------------
+            // 可以接受 不同行操作（读/写）、同行读、刷新操作等 
+            // ------------------------------------------------------------------------------------------
             STATE_WRWAIT: begin
                 if(wrwait_cnt < WR)
                     wrwait_cnt <= wrwait_cnt + 1'b1;
@@ -338,8 +373,8 @@ always @(posedge clk or negedge rst_n) begin
                 end
                 //读请求到来,同一～，需要写恢复
                 //需要等待tWTR时间后
-                // else if(wr_to_rd) begin
-                //     state <= STATE_WRTORD;
+                // else if(wr_to_rd && wrwait_cnt >= 2) begin
+                //     state <= STATE_READ;
                 // end
                 
                 // 读/写请求不在同一bank/row、刷新请求到来，需要写恢复

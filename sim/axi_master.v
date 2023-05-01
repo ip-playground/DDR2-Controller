@@ -49,7 +49,7 @@ reg     [3:0]   w_cnt;
 
 assign awvalid = state == AW;
 assign awlen   = WBURST_LEN;
-assign wlast   = w_cnt == awlen+1;
+assign wlast   = w_cnt == awlen + 1;
 assign wvalid  = state == W;
 assign bready  = 1'b1;
 
