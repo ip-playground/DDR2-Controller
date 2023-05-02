@@ -253,7 +253,7 @@ assign same_ba_col = (ba == awaddr[`BA_BITS + `ROW_BITS+`COL_BITS-1:`COL_BITS + 
 assign wr_to_wr = aref_req == 1'b0 && awvalid == 1'b1 && same_ba_col == 1'b1;
 
 assign awready = aref_req == 1'b0 && (state == STATE_IDLE || (state == STATE_WRWAIT && same_ba_col == 1'b1)
-                                                          || (state == STATE_WRITE && same_ba_col == 1'b1));
+                                                          || (state == STATE_WRDATA && same_ba_col == 1'b1));
 assign wready = state == STATE_WRITE;
 
 

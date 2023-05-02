@@ -54,7 +54,7 @@ assign wvalid  = state == W;
 assign bready  = 1'b1;
 
 
-parameter   delay_wr_gap = 10;
+parameter   delay_wr_gap = 50;
 integer  cnt_wr_gap;
 reg         wr_req; 
 always @(posedge clk or negedge rstn) begin
