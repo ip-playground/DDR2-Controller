@@ -114,7 +114,7 @@ always @(posedge clk or negedge rst_n) begin
             LM5:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0100_0011_0010; init_ba <= 3'b000;   end
             LM6:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0011_1000_0000; init_ba <= 3'b001;   end
             // EMR1 暂时这么设置，AL = 2(POST CAS)  
-            LM7:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0000_0001_0000; init_ba <= 3'b001;   end
+            LM7:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0000_0000_1000; init_ba <= 3'b001;   end
             PRE3:   begin init_cmd <= PRE;  init_addr <= `ADDR_BITS'b00_0100_0000_0000;     end
             default: init_cmd <= NOP;
         endcase

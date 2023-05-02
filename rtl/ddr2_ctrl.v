@@ -97,7 +97,7 @@ localparam  STATE_AREF      =   5'b0_0010;
 localparam  STATE_PRE       =   5'b0_0011;
 
 localparam  STATE_WRITE     =   5'b0_0111;
-localparam  STATE_WRDATA    =   5'b0_0101;
+localparam  STATE_WDATA     =   5'b0_0101;
 localparam  STATE_WRITE2    =   5'b0_0100;
 localparam  STATE_WRWAIT    =   5'b0_0110;
 
@@ -182,7 +182,7 @@ reg                             dqm_pre;
 reg                             dqm;
 reg                   [5:0]     time_after_cmd_wr;
 
-localparam  AL              =   `tRCD/`tCK - 1;
+localparam  AL              =   `tRCD/`tCK - 2;
 localparam  WL              =   AL + `CL - 1;    
 localparam  WR              =   `tWR/`tCK;
 
@@ -191,7 +191,7 @@ always @(posedge clk) begin
     wdata_1 <= 'd0;
     wdata_2 <= 'd0;
     wdata_3 <= 'd0;
-  end else if(state == STATE_WRITE || state == STATE_WRDATA) begin
+  end else if(state == STATE_WRITE || state == STATE_WDATA) begin
   // end else begin
     wdata_1 <= wdata;
     wdata_2 <= wdata_1;
@@ -200,12 +200,12 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-  {wdata_h, wdata_l} <= wdata_3;
+  {wdata_h, wdata_l} <= wdata_2;
 end
 
 always @(posedge clk) begin
   if(!rst_n) time_after_cmd_wr <= 'd9;
-  else if(w_cnt == 'd5) time_after_cmd_wr <= 'd0;
+  else if(w_cnt == 'd4) time_after_cmd_wr <= 'd0;
   else if(time_after_cmd_wr < 'd9) time_after_cmd_wr <= time_after_cmd_wr + 'd1;
 end
 
@@ -253,7 +253,7 @@ assign same_ba_col = (ba == awaddr[`BA_BITS + `ROW_BITS+`COL_BITS-1:`COL_BITS + 
 assign wr_to_wr = aref_req == 1'b0 && awvalid == 1'b1 && same_ba_col == 1'b1;
 
 assign awready = aref_req == 1'b0 && (state == STATE_IDLE || (state == STATE_WRWAIT && same_ba_col == 1'b1)
-                                                          || (state == STATE_WRDATA && same_ba_col == 1'b1));
+                                                          || (state == STATE_WDATA && same_ba_col == 1'b1));
 assign wready = state == STATE_WRITE;
 
 
@@ -329,7 +329,7 @@ always @(posedge clk or negedge rst_n) begin
 
             STATE_WRITE: begin
                 w_cnt <= w_cnt + 1;
-                if(w_cnt == awlen + 1) state <= STATE_WRDATA;
+                if(w_cnt == awlen + 1) state <= STATE_WDATA;
                 else if(wvalid) begin
                     if(w_cnt[0] == 1'b1) begin
                         cmd <= WRITE;
@@ -345,14 +345,14 @@ always @(posedge clk or negedge rst_n) begin
             // 2、在写数据完全传输到总线上后，转为另一等待状态，
             // 3、这一等待状态可以接收更多其他请求
             // ------------------------------------------------------------------------------------------
-            STATE_WRDATA: begin
+            STATE_WDATA: begin
                 if(wr_to_wr) begin          
                     w_cnt <= 'd0; 
                     init_col_addr <= awaddr[`COL_BITS-1:2];
                     state <= STATE_WRITE;
                 end else
                     w_cnt <= w_cnt + 1;
-                if (w_cnt > awlen + WL) begin
+                if (w_cnt > awlen + WL + 1) begin
                     state <= STATE_WRWAIT;
                     wrwait_cnt <= 'd0;
                 end
