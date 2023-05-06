@@ -36,6 +36,15 @@ wire    [DATA_WIDTH-1:0]    wdata;
 wire                        bvalid;
 wire                        bready;
 
+wire                        arvalid;
+wire                        arready;
+wire     [ADDR_WIDTH-1:0]   araddr;
+wire     [           7:0]   arlen;
+wire                        rvalid;
+wire                        rready;
+wire                        rlast;
+wire    [DATA_WIDTH-1:0]    rdata;
+
 wire                        ddr2_clk;
 wire                        ddr2_clk_n;
 wire                        ddr2_cke;
@@ -61,7 +70,7 @@ initial begin
     rstn_async <= 1'b0;
     repeat(4) @(posedge clk800m);
     rstn_async <= 1'b1;
-    #309000000;
+    #315000000;
     w_trig <= 1'b1;
     #15000;
     w_trig <= 1'b0;
@@ -94,7 +103,15 @@ axi_master #(
     .wlast                  (wlast),
     .wdata                  (wdata),
     .bvalid                 (bvalid),
-    .bready                 (bready)
+    .bready                 (bready),
+    .arvalid                (arvalid),
+    .arready                (arready),
+    .araddr                 (araddr),
+    .arlen                  (arlen),
+    .rvalid                 (rvalid),
+    .rready                 (rready),
+    .rlast                  (rlast),
+    .rdata                  (rdata)
 );
 
 ddr2_ctrl ddr2_ctrl_inst (
@@ -113,6 +130,14 @@ ddr2_ctrl ddr2_ctrl_inst (
     .wdata                  (wdata),
     .bvalid                 (bvalid),
     .bready                 (bready),
+    .arvalid                (arvalid),
+    .arready                (arready),
+    .araddr                 (araddr),
+    .arlen                  (arlen),
+    .rvalid                 (rvalid),
+    .rready                 (rready),
+    .rlast                  (rlast),
+    .rdata                  (rdata),
     .ddr2_clk               (ddr2_clk),
     .ddr2_clk_n             (ddr2_clk_n),
     .ddr2_cke               (ddr2_cke),
