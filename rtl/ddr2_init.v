@@ -10,40 +10,52 @@
  *
  *******************************************************************************
  */
-`include "/home/caoshiyang/ddr2/DDR2-Controller/rtl/define.v"
-module ddr2_init(
+`include "../rtl/define.v"
+module ddr2_init #(
+    parameter   BA_BITS     =   3,
+    parameter   ADDR_BITS   =   14 // Address Bits
+)
+(
     input                               clk,
     input                               rst_n,
     output  reg                         init_cke,
-    output  reg     [`BA_BITS-1:0]      init_ba,
-    output  reg     [3:0]               init_cmd,
-    output  reg     [`ADDR_BITS-1:0]    init_addr,
+    output  reg      [BA_BITS-1:0]      init_ba,
+    output  reg      [3:0]              init_cmd,
+    output  reg      [ADDR_BITS-1:0]    init_addr,
     output  wire                        init_end
 );
 
 //=============================================================================\
 // ****************** Define Parameter and Internal Signals *****************
 //=============================================================================\
-localparam          DELAY_300US =   `INIT_DELAY_300US/`tCK;
-localparam          DELAY_500NS =   `INIT_DELAY_500NS/`tCK;
+parameter     tCK                   =   5;               
+parameter     INIT_DELAY_300US      =   300000;
+parameter     INIT_DELAY_500NS      =   500;
+parameter     tRPA                  =   15;             
+parameter     tMRD                  =   2;              //单位tCK
+parameter     tRFC                  =   130;          //原本应该是127.5，为了方便整除改为130
+
 localparam          NOP         =   4'b0111;
 localparam          PRE         =   4'b0010;
 localparam          AREF        =   4'b0001;
 localparam          LM          =   4'b0000;
 
+localparam          DELAY_300US =   INIT_DELAY_300US/tCK;
+localparam          DELAY_500NS =   INIT_DELAY_500NS/tCK;
+
 //以下为init在等待500ns之后的操作
 localparam          PRE1        =   0;
-localparam          LM1         =   PRE1 + `tRPA/`tCK;
-localparam          LM2         =   LM1 + `tMRD;
-localparam          LM3         =   LM2 + `tMRD;
-localparam          LM4         =   LM3 + `tMRD;
-localparam          PRE2        =   LM4 + `tMRD;
-localparam          AREF1       =   PRE2 + `tRPA/`tCK;
-localparam          AREF2       =   AREF1 + `tRFC/`tCK;
-localparam          LM5         =   AREF2 + `tRFC/`tCK;
-localparam          LM6         =   LM5 + `tMRD;
-localparam          LM7         =   LM6 + `tMRD;
-localparam          PRE3        =   LM7 + `tMRD;
+localparam          LM1         =   PRE1 + tRPA/tCK;
+localparam          LM2         =   LM1 + tMRD;
+localparam          LM3         =   LM2 + tMRD;
+localparam          LM4         =   LM3 + tMRD;
+localparam          PRE2        =   LM4 + tMRD;
+localparam          AREF1       =   PRE2 + tRPA/tCK;
+localparam          AREF2       =   AREF1 + tRFC/tCK;
+localparam          LM5         =   AREF2 + tRFC/tCK;
+localparam          LM6         =   LM5 + tMRD;
+localparam          LM7         =   LM6 + tMRD;
+localparam          PRE3        =   LM7 + tMRD;
 
 
 integer             cnt_300us;
@@ -102,20 +114,20 @@ always @(posedge clk or negedge rst_n) begin
     end
     else if(flag_end_500ns) begin
         case(cnt_cmd)
-            PRE1:   begin init_cmd <= PRE;  init_addr <= `ADDR_BITS'b00_0100_0000_0000;     end
-            LM1:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0000_0000_0000; init_ba <= 3'b010;   end
-            LM2:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0000_0000_0000; init_ba <= 3'b011;   end
-            LM3:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0000_0000_0000; init_ba <= 3'b001;   end
-            LM4:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_1011_0110_0010; init_ba <= 3'b000;   end
-            PRE2:   begin init_cmd <= PRE;  init_addr <= `ADDR_BITS'b00_0100_0000_0000;     end
+            PRE1:   begin init_cmd <= PRE;  init_addr <= (ADDR_BITS)'('b00_0100_0000_0000);     end
+            LM1:    begin init_cmd <= LM;   init_addr <= (ADDR_BITS)'('b00_0000_0000_0000); init_ba <= 3'b010;   end
+            LM2:    begin init_cmd <= LM;   init_addr <= (ADDR_BITS)'('b00_0000_0000_0000); init_ba <= 3'b011;   end
+            LM3:    begin init_cmd <= LM;   init_addr <= (ADDR_BITS)'('b00_0000_0000_0000); init_ba <= 3'b001;   end
+            LM4:    begin init_cmd <= LM;   init_addr <= (ADDR_BITS)'('b00_1011_0110_0010); init_ba <= 3'b000;   end
+            PRE2:   begin init_cmd <= PRE;  init_addr <= (ADDR_BITS)'('b00_0100_0000_0000);     end
             AREF1:   begin init_cmd <= AREF;  end
             AREF2:   begin init_cmd <= AREF;  end
             //MR默认设置：WR=3,CL=3,突发：顺序，长度4 ;
-            LM5:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0100_0011_0010; init_ba <= 3'b000;   end
-            LM6:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0011_1000_0000; init_ba <= 3'b001;   end
+            LM5:    begin init_cmd <= LM;   init_addr <= (ADDR_BITS)'('b00_0100_0011_0010); init_ba <= 3'b000;   end
+            LM6:    begin init_cmd <= LM;   init_addr <= (ADDR_BITS)'('b00_0011_1000_0000); init_ba <= 3'b001;   end
             // EMR1 暂时这么设置，AL = 2(POST CAS)  
-            LM7:    begin init_cmd <= LM;   init_addr <= `ADDR_BITS'b00_0000_0001_0000; init_ba <= 3'b001;   end
-            PRE3:   begin init_cmd <= PRE;  init_addr <= `ADDR_BITS'b00_0100_0000_0000;     end
+            LM7:    begin init_cmd <= LM;   init_addr <= (ADDR_BITS)'('b00_0000_0000_1000); init_ba <= 3'b001;   end
+            PRE3:   begin init_cmd <= PRE;  init_addr <= (ADDR_BITS)'('b00_0100_0000_0000);     end
             default: init_cmd <= NOP;
         endcase
     end

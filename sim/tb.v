@@ -13,9 +13,15 @@
 `timescale 1ps / 1ps
 `include "../rtl/define.v" 
 module tb();
-
-parameter           ADDR_WIDTH  = `ROW_BITS + `COL_BITS + `BA_BITS;
-parameter           DATA_WIDTH  = `DQ_BITS * 2;
+parameter   BA_BITS     =   3;
+parameter   ADDR_BITS   =   14; // Address Bits
+parameter   ROW_BITS    =   14; // Number of Address bits
+parameter   COL_BITS    =   10; // Number of Column bits
+parameter   DM_BITS     =   1; // Number of Data Mask bits
+parameter   DQ_BITS     =   8; // Number of Data bits
+parameter   DQS_BITS    =   1;// Number of Dqs bits
+parameter           ADDR_WIDTH  = ROW_BITS + COL_BITS + BA_BITS;
+parameter           DATA_WIDTH  = DQ_BITS * 2;
 parameter           DATA_LEVEL  = 2;
 parameter   [7:0]   WBURST_LEN   = 8'd8;  
 parameter   [7:0]   RBURST_LEN   = 8'd8;  
@@ -36,6 +42,15 @@ wire    [DATA_WIDTH-1:0]    wdata;
 wire                        bvalid;
 wire                        bready;
 
+wire                        arvalid;
+wire                        arready;
+wire     [ADDR_WIDTH-1:0]   araddr;
+wire     [           7:0]   arlen;
+wire                        rvalid;
+wire                        rready;
+wire                        rlast;
+wire    [DATA_WIDTH-1:0]    rdata;
+
 wire                        ddr2_clk;
 wire                        ddr2_clk_n;
 wire                        ddr2_cke;
@@ -43,12 +58,12 @@ wire                        ddr2_cs_n;
 wire                        ddr2_cas_n;
 wire                        ddr2_ras_n;
 wire                        ddr2_we_n;
-wire      [`BA_BITS-1:0]    ddr2_ba;
-wire    [`ADDR_BITS-1:0]    ddr2_addr;
-wire      [`DM_BITS-1:0]    ddr2_dqm;
-wire      [`DQ_BITS-1:0]    ddr2_dq;
-wire     [`DQS_BITS-1:0]    ddr2_dqs;
-wire     [`DQS_BITS-1:0]    ddr2_dqs_n;
+wire      [BA_BITS-1:0]    ddr2_ba;
+wire    [ADDR_BITS-1:0]    ddr2_addr;
+wire      [DM_BITS-1:0]    ddr2_dqm;
+wire      [DQ_BITS-1:0]    ddr2_dq;
+wire     [DQS_BITS-1:0]    ddr2_dqs;
+wire     [DQS_BITS-1:0]    ddr2_dqs_n;
 
 
 always #625 clk800m = ~clk800m;
@@ -61,7 +76,7 @@ initial begin
     rstn_async <= 1'b0;
     repeat(4) @(posedge clk800m);
     rstn_async <= 1'b1;
-    #309000000;
+    #315000000;
     w_trig <= 1'b1;
     #15000;
     w_trig <= 1'b0;
@@ -94,7 +109,15 @@ axi_master #(
     .wlast                  (wlast),
     .wdata                  (wdata),
     .bvalid                 (bvalid),
-    .bready                 (bready)
+    .bready                 (bready),
+    .arvalid                (arvalid),
+    .arready                (arready),
+    .araddr                 (araddr),
+    .arlen                  (arlen),
+    .rvalid                 (rvalid),
+    .rready                 (rready),
+    .rlast                  (rlast),
+    .rdata                  (rdata)
 );
 
 ddr2_ctrl ddr2_ctrl_inst (
@@ -113,6 +136,14 @@ ddr2_ctrl ddr2_ctrl_inst (
     .wdata                  (wdata),
     .bvalid                 (bvalid),
     .bready                 (bready),
+    .arvalid                (arvalid),
+    .arready                (arready),
+    .araddr                 (araddr),
+    .arlen                  (arlen),
+    .rvalid                 (rvalid),
+    .rready                 (rready),
+    .rlast                  (rlast),
+    .rdata                  (rdata),
     .ddr2_clk               (ddr2_clk),
     .ddr2_clk_n             (ddr2_clk_n),
     .ddr2_cke               (ddr2_cke),
