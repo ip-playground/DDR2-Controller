@@ -10,9 +10,17 @@
  *
  *******************************************************************************
  */
- 
-`include "/home/caoshiyang/ddr2/DDR2-Controller/rtl/define.v"
-module ddr2_ctrl(
+`include "../rtl/define.v"
+module ddr2_ctrl #(
+    parameter   BA_BITS     =   3,
+    parameter   ADDR_BITS   =   14, // Address Bits
+    parameter   ROW_BITS    =   14, // Number of Address bits
+    parameter   COL_BITS    =   10, // Number of Column bits
+    parameter   DM_BITS     =   1, // Number of Data Mask bits
+    parameter   DQ_BITS     =   8, // Number of Data bits
+    parameter   DQS_BITS    =   1 // Number of Dqs bits
+)
+(
     output  reg                                         clk,
     output  reg                                         rst_n,
     input   wire                                        clk800m,
@@ -21,23 +29,23 @@ module ddr2_ctrl(
 
     input   wire                                        awvalid,
     output  wire                                        awready,
-    input   wire    [`BA_BITS+`ROW_BITS+`COL_BITS-1:0]  awaddr,
+    input   wire       [BA_BITS+ROW_BITS+COL_BITS-1:0]  awaddr,
     input   wire                                 [7:0]  awlen,
     input   wire                                        wvalid,
     output  wire                                        wready,
     input   wire                                        wlast,
-    input   wire                      [`DQ_BITS*2-1:0]  wdata,
+    input   wire                      [DQ_BITS*2-1:0]   wdata,
     output  reg                                         bvalid,
     input   wire                                        bready,
 
     input   wire                                        arvalid,
     output  wire                                        arready,
-    input   wire    [`BA_BITS+`ROW_BITS+`COL_BITS-1:0]  araddr, 
+    input   wire       [BA_BITS+ROW_BITS+COL_BITS-1:0]  araddr, 
     input   wire                                [ 7:0]  arlen,
     output  wire                                        rvalid,
     input   wire                                        rready,
     output  wire                                        rlast,
-    output  reg                       [`DQ_BITS*2-1:0]  rdata,
+    output  reg                       [DQ_BITS*2-1:0]  rdata,
 
     output  wire                                        ddr2_clk,
     output  wire                                        ddr2_clk_n,
@@ -46,17 +54,31 @@ module ddr2_ctrl(
     output  wire                                        ddr2_we_n,
     output  wire                                        ddr2_ras_n,
     output  wire                                        ddr2_cas_n,
-    output  wire                        [`BA_BITS-1:0]  ddr2_ba,
-    output  wire                      [`ADDR_BITS-1:0]  ddr2_addr,
+    output  wire                         [BA_BITS-1:0]  ddr2_ba,
+    output  wire                       [ADDR_BITS-1:0]  ddr2_addr,
     inout                                        [7:0]  ddr2_dq,
     inout                                               ddr2_dqm,
     inout                                               ddr2_dqs,
     inout                                               ddr2_dqs_n
    // output                  ddr2_odt   
 );
+parameter   tCK     =   5;               
+parameter   tRPA    =   15;             
+parameter   tRFC    =   130;          //原本应该是127.5，为了方便整除改为130
+//ref模块
+parameter   tREFI   =   7800;
+//Active
+parameter   tRCD    =   15;      //12.5
+parameter   tRRD    =   7.5;
+parameter   tRC     =   55;
+parameter   tFAW    =   35;
+//Write
+parameter   CL      =   3;       //速率400                  
+parameter   BL      =   4;
+parameter   tWR     =   15;
 
 // -------------------------------------------------------------------------------------
-//   cloclk and reset 
+//   clock and reset 
 // ------------------------------------------------------------------------------------------------------------------------
 // generate reset sync with clk800m
 // -------------------------------------------------------------------------------------
@@ -133,22 +155,22 @@ localparam  ACT             =   4'b0011;
 //   init
 // -------------------------------------------------------------------------------------
 // wire                            init_end; 
-wire        [`BA_BITS-1:0]      init_ba;
-wire        [`ADDR_BITS-1:0]    init_addr;
+wire        [BA_BITS-1:0]       init_ba;
+wire        [ADDR_BITS-1:0]     init_addr;
 wire        [3:0]               init_cmd;
 wire                            init_cke;
 // -------------------------------------------------------------------------------------
 //   aref
 // -------------------------------------------------------------------------------------
+
+localparam  DELAY_tREFI     =   tREFI/tCK;
+localparam  RPA             =   tRPA/tCK;
+localparam  RFC             =   tRFC/tCK;
+localparam  ALLPRE_ADDR     =   (ADDR_BITS)'('b0_0100_0000_0000);
+
 reg                             aref_req;
 integer                         cnt_tREFI;
 reg         [7:0]               ref_cnt;
-
-localparam  DELAY_tREFI     =   `tREFI/`tCK;
-localparam  RPA             =   `tRPA/`tCK;
-localparam  RFC             =   `tRFC/`tCK;
-localparam  ALLPRE_ADDR     =   `ADDR_BITS'b0_0100_0000_0000;
-
 
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n) 
@@ -172,33 +194,34 @@ end
 // -------------------------------------------------------------------------------------
 //   write
 // -------------------------------------------------------------------------------------
-reg         [`COL_BITS-3:0]     init_col_addr;
-reg                   [5:0]     w_cnt;
-reg                   [5:0]     wrwait_cnt;
-reg                   [5:0]     rp_cnt;
+localparam  AL              =   tRCD/tCK - 2;
+localparam  WL              =   AL + CL - 1;    
+localparam  RL              =   AL + CL;    
+localparam  WR              =   tWR/tCK;
 
-reg        [`DQ_BITS*2-1:0]     wdata_1;
-reg        [`DQ_BITS*2-1:0]     wdata_2;
-reg        [`DQ_BITS*2-1:0]     wdata_3;
-reg          [`DQ_BITS-1:0]     wdata_h;
-reg          [`DQ_BITS-1:0]     wdata_l;
+reg         [COL_BITS-3:0]     init_col_addr;
+reg                  [5:0]     w_cnt;
+reg                  [5:0]     wrwait_cnt;
+reg                  [5:0]     rp_cnt;
+
+reg        [DQ_BITS*2-1:0]     wdata_1;
+reg        [DQ_BITS*2-1:0]     wdata_2;
+reg        [DQ_BITS*2-1:0]     wdata_3;
+reg          [DQ_BITS-1:0]     wdata_h;
+reg          [DQ_BITS-1:0]     wdata_l;
 
 
-reg          [`DQ_BITS-1:0]     dq_pre;
-reg          [`DQ_BITS-1:0]     dq;
-wire                            dqs;
-wire                            dqs_n;
-reg                             dqm_pre;
-reg                             dqm;
-reg                   [5:0]     time_after_cmd_wr;
+reg          [DQ_BITS-1:0]     dq_pre;
+reg          [DQ_BITS-1:0]     dq;
+wire                           dqs;
+wire                           dqs_n;
+reg                            dqm_pre;
+reg                            dqm;
+reg                  [5:0]     time_after_cmd_wr;
 
-localparam  AL              =   `tRCD/`tCK - 2;
-localparam  WL              =   AL + `CL - 1;    
-localparam  RL              =   AL + `CL;    
-localparam  WR              =   `tWR/`tCK;
 
 always @(posedge clk) begin
-  if(!rst_n) begin
+    if(!rst_n) begin
     wdata_1 <= 'd0;
     wdata_2 <= 'd0;
     wdata_3 <= 'd0;
@@ -248,8 +271,8 @@ end
 reg                   [5:0]     r_cnt;
 reg                   [5:0]     rdwait_cnt;
 reg                   [3:0]     time_after_cmd_rd;
-reg          [`DQ_BITS-1:0]     rdata_l;
-reg          [`DQ_BITS-1:0]     pre_rdata;
+reg          [DQ_BITS-1:0]     rdata_l;
+reg          [DQ_BITS-1:0]     pre_rdata;
 
 assign rvalid = time_after_cmd_rd >= 'd0 && time_after_cmd_rd <= 'd8;   
 assign rlast  = time_after_cmd_rd == 'd8;
@@ -282,18 +305,18 @@ assign ddr2_dqm = dqm;
 //   state diagram
 // -------------------------------------------------------------------------------------
 
-reg         [`ADDR_BITS-1:0]    addr;
-reg         [`BA_BITS-1:0]      ba;
-reg         [`ROW_BITS-1:0]     row_addr;
+reg          [ADDR_BITS-1:0]    addr;
+reg          [BA_BITS-1:0]      ba;
+reg          [ROW_BITS-1:0]     row_addr;
 reg                             rd_or_wr;
 wire                            same_to_wr;
 wire                            same_to_rd;
 wire                            same_ba_col_w;
 wire                            same_ba_col_r;
-assign same_ba_col_w = (ba == awaddr[`BA_BITS + `ROW_BITS+`COL_BITS-1:`COL_BITS + `ROW_BITS])
-                     && (row_addr == awaddr[`ROW_BITS+`COL_BITS-1:`COL_BITS]);
-assign same_ba_col_r = (ba == araddr[`BA_BITS + `ROW_BITS+`COL_BITS-1:`COL_BITS + `ROW_BITS])
-                     && (row_addr == araddr[`ROW_BITS+`COL_BITS-1:`COL_BITS]);
+assign same_ba_col_w = (ba == awaddr[BA_BITS + ROW_BITS+COL_BITS-1:COL_BITS + ROW_BITS])
+                     && (row_addr == awaddr[ROW_BITS+COL_BITS-1:COL_BITS]);
+assign same_ba_col_r = (ba == araddr[BA_BITS + ROW_BITS+COL_BITS-1:COL_BITS + ROW_BITS])
+                     && (row_addr == araddr[ROW_BITS+COL_BITS-1:COL_BITS]);
 
 assign same_to_wr = aref_req == 1'b0 && awvalid == 1'b1 && same_ba_col_w == 1'b1;
 assign same_to_rd = aref_req == 1'b0 && arvalid == 1'b1 && same_ba_col_r == 1'b1;
@@ -331,17 +354,17 @@ always @(posedge clk or negedge rst_n) begin
                 else if(awvalid) begin 
                     w_cnt <= 6'd0;
                     cmd <= ACT;
-                    {ba, addr} <= awaddr[`BA_BITS+`ROW_BITS+`COL_BITS-1:`COL_BITS];
-                    row_addr <= awaddr[`ROW_BITS+`COL_BITS-1:`COL_BITS];
-                    init_col_addr <= awaddr[`COL_BITS-1:2];
+                    {ba, addr} <= awaddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
+                    row_addr <= awaddr[ROW_BITS+COL_BITS-1:COL_BITS];
+                    init_col_addr <= awaddr[COL_BITS-1:2];
                     state <= STATE_WRITE;
                 end 
                 else if(arvalid) begin
                     r_cnt <= 6'd0;
                     cmd <= ACT;
-                    {ba, addr} <= araddr[`BA_BITS+`ROW_BITS+`COL_BITS-1:`COL_BITS];
-                    row_addr <= araddr[`ROW_BITS+`COL_BITS-1:`COL_BITS];
-                    init_col_addr <= araddr[`COL_BITS-1:2];
+                    {ba, addr} <= araddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
+                    row_addr <= araddr[ROW_BITS+COL_BITS-1:COL_BITS];
+                    init_col_addr <= araddr[COL_BITS-1:2];
                     state <= STATE_READ;
                 end
                 else 
@@ -379,7 +402,7 @@ always @(posedge clk or negedge rst_n) begin
             STATE_WDATA: begin
                 if(same_to_wr) begin          
                     w_cnt <= 'd0; 
-                    init_col_addr <= awaddr[`COL_BITS-1:2];
+                    init_col_addr <= awaddr[COL_BITS-1:2];
                     state <= STATE_WRITE;
                 end 
                 else begin
@@ -401,11 +424,11 @@ always @(posedge clk or negedge rst_n) begin
                     wrwait_cnt <= wrwait_cnt + 1'b1;
                 // cmd <= NOP;
                 //写请求到来，且同一bank,row,不需要写恢复
-                if(same_to_wr == 1'b1 ) begin
+                if(same_to_wr) begin
                     // if(rd_or_wr == 1'b0) begin
                         state <= STATE_WRITE;
                         w_cnt <= 'd0;
-                        init_col_addr <= awaddr[`COL_BITS-1:2];
+                        init_col_addr <= awaddr[COL_BITS-1:2];
                     // end
                 end
                 //读请求到来,同一～，需要写恢复
@@ -414,8 +437,8 @@ always @(posedge clk or negedge rst_n) begin
                     // rd_or_wr <= 1'b1;
                     // if (wrwait_cnt >= 2) begin
                     //     r_cnt <= 'd2;
-                    //     init_col_addr <= araddr[`COL_BITS-1:2];
-                    //     addr <= {araddr[`COL_BITS-1:2], 2'b0};
+                    //     init_col_addr <= araddr[COL_BITS-1:2];
+                    //     addr <= {araddr[COL_BITS-1:2], 2'b0};
                     //     cmd <= READ;
                     //     state <= STATE_READ;
                     // end
@@ -436,8 +459,8 @@ always @(posedge clk or negedge rst_n) begin
                 wrwait_cnt <= wrwait_cnt + 1;
                 if(wrwait_cnt == 2)  begin
                     r_cnt <= 'd2;
-                    init_col_addr <= araddr[`COL_BITS-1:2];
-                    addr <= {araddr[`COL_BITS-1:2], 2'b0};
+                    init_col_addr <= araddr[COL_BITS-1:2];
+                    addr <= {araddr[COL_BITS-1:2], 2'b0};
                     cmd <= READ;
                     state <= STATE_READ;
                 end
@@ -457,7 +480,7 @@ always @(posedge clk or negedge rst_n) begin
             STATE_PRE: begin
                 rp_cnt <= rp_cnt + 1;
                 cmd <= NOP;
-                if(rp_cnt >= `tRPA/`tCK) begin
+                if(rp_cnt >= tRPA/tCK) begin
                     state <= STATE_IDLE;
                 end
             end
@@ -483,15 +506,15 @@ always @(posedge clk or negedge rst_n) begin
                 rdwait_cnt <= rdwait_cnt + 1;
                 if(same_to_rd) begin
                     r_cnt <= 'd2;
-                    init_col_addr <= araddr[`COL_BITS-1:2];
-                    addr <= {araddr[`COL_BITS-1:2], 2'b0};
+                    init_col_addr <= araddr[COL_BITS-1:2];
+                    addr <= {araddr[COL_BITS-1:2], 2'b0};
                     cmd <= READ;
                     state <= STATE_READ;
                 end 
                 else if(same_to_wr) begin
                     w_cnt <= 'd0;
-                    init_col_addr <= awaddr[`COL_BITS-1:2];
-                    // addr <= {araddr[`COL_BITS-1:2], 2'b0};
+                    init_col_addr <= awaddr[COL_BITS-1:2];
+                    // addr <= {araddr[COL_BITS-1:2], 2'b0};
                     // cmd <= WRITE;
                     state <= STATE_WRITE;
                 end 

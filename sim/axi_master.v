@@ -12,11 +12,12 @@
 `include "../rtl/define.v" 
 
 module axi_master #(
-    parameter           ADDR_WIDTH  = `ROW_BITS + `COL_BITS + `BA_BITS,
-    parameter           DATA_WIDTH  = `DQ_BITS * 2,
+    parameter           ADDR_WIDTH  = 27,
+    parameter           DATA_WIDTH  = 16,
     parameter           DATA_LEVEL  = 2,
-    parameter   [7:0]   WBURST_LEN   = 8'd8,
-    parameter   [7:0]   RBURST_LEN   = 8'd8 
+    parameter           COL_BITS    = 10, // Number of Column bits
+    parameter   [7:0]   WBURST_LEN  = 8'd8,
+    parameter   [7:0]   RBURST_LEN  = 8'd8 
 )(
     input   wire                        rstn,
     input   wire                        clk,
@@ -223,7 +224,7 @@ always@(posedge clk or negedge rstn) begin
                 // else if(state_r == RUN)
                 //     mark <= 1'b0;
                 if(ar_cnt == 'd8) begin
-                    same_ba_col_r <= araddr[ADDR_WIDTH-1 : `COL_BITS] ^ next_araddr[ADDR_WIDTH-1 : `COL_BITS] == 'd0 ? 1'b1 : 1'b0;
+                    same_ba_col_r <= araddr[ADDR_WIDTH-1 : COL_BITS] ^ next_araddr[ADDR_WIDTH-1 : COL_BITS] == 'd0 ? 1'b1 : 1'b0;
                     araddr <= next_araddr;
                     state_ar <= IDLE;  
                 end 
