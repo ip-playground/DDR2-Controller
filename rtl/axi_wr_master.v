@@ -89,7 +89,7 @@ always @(posedge clk) begin
                     state_w <= AW;
                     axi_awvalid <= 1'b1;
                     axi_awaddr <= wr_addr;
-                    axi_awlen <= wr_len;
+                   
                 end
             end
 
@@ -98,6 +98,7 @@ always @(posedge clk) begin
                     state_w <= W;
                     axi_awvalid <= 1'b0;
                     axi_wvalid <= 1'b1;
+                    axi_awlen <= wr_len;
                     wr_data_cnt <= wr_len - 'd1;
                 end
             end

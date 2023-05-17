@@ -87,12 +87,12 @@ always @(posedge clk) begin
                     state_r <= AR;
                     axi_arvalid <= 1'b1;
                     axi_araddr <= rd_addr;
-                    axi_arlen <= rd_len;
                 end
             end
 
             AR:begin
                 if(axi_arready) begin
+                    axi_arlen <= rd_len;
                     state_r <= R;
                     axi_arvalid <= 1'b0;
                     axi_rready <= 1'b1;

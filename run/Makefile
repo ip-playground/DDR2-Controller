@@ -1,3 +1,5 @@
+TOP_NAME := tb_rd
+
 RTL_FLIST := -f ../filelist/rtl.f \
 
 TB_FLIST :=  -f ../filelist/tb.f \
@@ -19,7 +21,7 @@ WAVE_FILE := tb_rd.fsdb
 
 
 comp :	
-	${SIM_TOOL} ${SIM_OPTIONS} ${TB_FLIST} ${RTL_FLIST} -top tb_rd -l compile.log
+	${SIM_TOOL} ${SIM_OPTIONS} ${TB_FLIST} ${RTL_FLIST} -top ${TOP_NAME} -l compile.log
 
 sim:
 	./simv -l run.log 

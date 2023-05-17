@@ -12,7 +12,7 @@
  */
 `timescale 1ps / 1ps
 `include "../rtl/define.v" 
-module tb_rd();
+module tb_wr();
 parameter   BA_BITS     =   3;
 parameter   ADDR_BITS   =   14; // Address Bits
 parameter   ROW_BITS    =   14; // Number of Address bits
@@ -58,12 +58,12 @@ wire                        ddr2_cs_n;
 wire                        ddr2_cas_n;
 wire                        ddr2_ras_n;
 wire                        ddr2_we_n;
-wire      [BA_BITS-1:0]    ddr2_ba;
-wire    [ADDR_BITS-1:0]    ddr2_addr;
-wire      [DM_BITS-1:0]    ddr2_dqm;
-wire      [DQ_BITS-1:0]    ddr2_dq;
-wire     [DQS_BITS-1:0]    ddr2_dqs;
-wire     [DQS_BITS-1:0]    ddr2_dqs_n;
+wire      [BA_BITS-1:0]     ddr2_ba;
+wire    [ADDR_BITS-1:0]     ddr2_addr;
+wire      [DM_BITS-1:0]     ddr2_dqm;
+wire      [DQ_BITS-1:0]     ddr2_dq;
+wire     [DQS_BITS-1:0]     ddr2_dqs;
+wire     [DQS_BITS-1:0]     ddr2_dqs_n;
 
 reg                         wr_trig;
 wire                [7:0]   wr_len;
@@ -73,22 +73,10 @@ reg      [ADDR_WIDTH-1:0]   wr_addr;
 wire                        wr_ready;
 wire                        wr_done;
 
-reg                         rd_trig;
-wire                [7:0]   rd_len;
-wire      [DATA_WIDTH-1:0]   rd_data;
-reg      [DATA_WIDTH-1:0]   rd_data_accept;
-wire                        rd_data_en;
-reg      [ADDR_WIDTH-1:0]   rd_addr;
-wire                        rd_ready;   
-wire                        rd_done;
-
 assign wr_len = 'd8;
-assign rd_len = 'd8;
 
-reg                         op_start;    
-reg                         op_start_rd;    
-integer cnt;        
-integer cnt_rd;        
+reg                         op_start;       
+integer cnt;              
 
 always #625 clk800m = ~clk800m;
 
@@ -98,23 +86,19 @@ initial begin
     clk800m <= 1'b1;
     rstn_async <= 1'b0;
     op_start <= 1'b0;
-    op_start_rd <= 1'b0;
     repeat(4) @(posedge clk800m);
     rstn_async <= 1'b1;
     #305000000;
     op_start <= 1'b1;
     #5500000;
-    // op_start <= 1'b0;
-    // op_start_rd <= 1'b1;
-    // #2500000;
     $finish(0);
 end
 
 initial begin
-    $dumpfile("tb_rd.fsdb");
-    $dumpvars(0,tb_rd);
+    $dumpfile("tb_wr.fsdb");
+    $dumpvars(0,tb_wr);
 end
-localparam wr_delay = 'd20;
+localparam wr_delay = 'd10;
 always @(posedge clk) begin
     if(op_start == 1'b0)
         cnt <= 'd0;
@@ -145,66 +129,6 @@ always @(posedge clk) begin
     end
 
 end
-
-
-localparam rd_delay = 'd30;
-always @(posedge clk) begin
-    if(op_start == 1'b0)
-        cnt_rd <= 'd0;
-    else if(cnt_rd == rd_delay) begin
-        cnt_rd <= 'd0;
-    end else 
-        cnt_rd <= cnt_rd + 'd1;
-end
-
-always @(posedge clk) begin
-    if(op_start == 1'b0)
-        rd_trig <= 1'b0;
-    else if(cnt_rd == rd_delay) 
-        rd_trig <= 1'b1;
-    else if(rd_trig == 1'b1 && rd_ready == 1'b1)
-        rd_trig <= 1'b0;
-end
-
-always @(posedge clk) begin
-    if(op_start == 1'b0) begin
-        rd_addr <= 'd0;
-    end else begin
-        if(rd_data_en)
-            rd_data_accept <= rd_data;
-        if(rd_done)
-            rd_addr <= rd_addr + 'd16;
-    end
-end
-
-axi_rd_master #(
-    .ADDR_WIDTH     ( ADDR_WIDTH     ),
-    .DATA_WIDTH     ( DATA_WIDTH     ),
-    .DATA_LEVEL     ( DATA_LEVEL    ),
-    .WBURST_LEN     ( WBURST_LEN  ),
-    .RBURST_LEN     ( RBURST_LEN  )
-) axi_rd_master_inst (
-    .rstn                       (rst_n),
-    .clk                        (clk),
-    .init_end                   (init_end),
-
-    .axi_arvalid                (axi_arvalid),
-    .axi_arready                (axi_arready),
-    .axi_araddr                 (axi_araddr),
-    .axi_arlen                  (axi_arlen),
-    .axi_rvalid                 (axi_rvalid),
-    .axi_rready                 (axi_rready),
-    .axi_rlast                  (axi_rlast),
-    .axi_rdata                  (axi_rdata),
-
-    .rd_trig                    (rd_trig),                    
-    .rd_len                     (rd_len),
-    .rd_data                    (rd_data),
-    .rd_data_en                 (rd_data_en),
-    .rd_addr                    (rd_addr),
-    .rd_ready                   (rd_ready),
-    .rd_done                    (rd_done)
-);
 
 
 axi_wr_master #(
@@ -276,8 +200,8 @@ ddr2_ctrl ddr2_ctrl_inst (
     .ddr2_dqs                   (ddr2_dqs),
     .ddr2_dqs_n                 (ddr2_dqs_n)
 );  
-
-ddr2 ddr2_inst(
+    
+ddr2 ddr2_inst( 
     .ck                         (ddr2_clk),
     .ck_n                       (ddr2_clk_n),
     .cke                        (ddr2_cke),
@@ -293,7 +217,7 @@ ddr2 ddr2_inst(
     .dqs_n                      (ddr2_dqs_n),
     .rdqs_n                     (),
     .odt                        ()
-);
+);  
 
 
 

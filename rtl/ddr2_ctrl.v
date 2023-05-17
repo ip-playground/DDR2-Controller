@@ -27,25 +27,25 @@ module ddr2_ctrl #(
     input   wire                                        rstn_async,
     output  wire                                        init_end,
 
-    input   wire                                        awvalid,
-    output  wire                                        awready,
-    input   wire       [BA_BITS+ROW_BITS+COL_BITS-1:0]  awaddr,
-    input   wire                                 [7:0]  awlen,
-    input   wire                                        wvalid,
-    output  wire                                         wready,
-    input   wire                                        wlast,
-    input   wire                      [DQ_BITS*2-1:0]   wdata,
-    output  reg                                         bvalid,
-    input   wire                                        bready,
+    input   wire                                        axi_awvalid,
+    output  wire                                        axi_awready,
+    input   wire       [BA_BITS+ROW_BITS+COL_BITS-1:0]  axi_awaddr,
+    input   wire                                 [7:0]  axi_awlen,
+    input   wire                                        axi_wvalid,
+    output  wire                                        axi_wready,
+    input   wire                                        axi_wlast,
+    input   wire                      [DQ_BITS*2-1:0]   axi_wdata,
+    output  wire                                        axi_bvalid,
+    input   wire                                        axi_bready,
 
-    input   wire                                        arvalid,
-    output  wire                                        arready,
-    input   wire       [BA_BITS+ROW_BITS+COL_BITS-1:0]  araddr, 
-    input   wire                                [ 7:0]  arlen,
-    output  wire                                        rvalid,
-    input   wire                                        rready,
-    output  wire                                        rlast,
-    output  reg                       [DQ_BITS*2-1:0]  rdata,
+    input   wire                                        axi_arvalid,
+    output  wire                                        axi_arready,
+    input   wire       [BA_BITS+ROW_BITS+COL_BITS-1:0]  axi_araddr, 
+    input   wire                                [ 7:0]  axi_arlen,
+    output  wire                                        axi_rvalid,
+    input   wire                                        axi_rready,
+    output  wire                                        axi_rlast,
+    output  reg                       [DQ_BITS*2-1:0]   axi_rdata,
 
     output  wire                                        ddr2_clk,
     output  wire                                        ddr2_clk_n,
@@ -126,20 +126,20 @@ always @ (posedge clk or negedge rstn_aclk)
 
 //state
 localparam  STATE_INIT      =   5'b0_0000;
-localparam  STATE_IDLE0     =   5'b1_0000;
 localparam  STATE_IDLE      =   5'b0_0001;
-localparam  STATE_ACT       =   5'b1_0001;
-localparam  STATE_AREF      =   5'b0_0010;
-localparam  STATE_PRE       =   5'b0_0011;
+localparam  STATE_AREF      =   5'b0_0011;
+localparam  STATE_PRE       =   5'b0_0010;
+localparam  STATE_ACT       =   5'b0_1101;
 
-localparam  STATE_WRITE     =   5'b0_0111;
-localparam  STATE_WDATA     =   5'b0_0101;
-localparam  STATE_WRTORD    =   5'b0_0100;
-localparam  STATE_WRWAIT    =   5'b0_0110;
-localparam  STATE_WRTOPRE   =   5'b0_1010;
+localparam  STATE_WRITE     =   5'b0_0101;
+localparam  STATE_WROVER    =   5'b0_1001;
+localparam  STATE_WRWAIT    =   5'b0_0111;
+localparam  STATE_WRTORD    =   5'b0_0110;
+localparam  STATE_WRTOPRE   =   5'b0_0100;
 
-localparam  STATE_READ      =   5'b0_1111;
-localparam  STATE_RDWAIT     =   5'b0_1101;
+localparam  STATE_READ      =   5'b0_1100;
+localparam  STATE_RDOVER    =   5'b0_1101;
+localparam  STATE_RDWAIT    =   5'b0_1111;
 localparam  STATE_RDTOPRE   =   5'b0_1110;
 
 
@@ -176,6 +176,9 @@ localparam  ALLPRE_ADDR     =   (ADDR_BITS)'('b0_0100_0000_0000);
 reg                             aref_req;
 integer                         cnt_tREFI;
 reg         [7:0]               ref_cnt;
+wire                            wr_stop_en;
+wire                            rd_stop_en;
+
 
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n) 
@@ -191,7 +194,7 @@ end
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n) 
         aref_req <= 1'b0;
-    else if(state == STATE_IDLE && aref_req == 1'b1) 
+    else if((state == STATE_IDLE )  && aref_req == 1'b1) 
         aref_req <= 1'b0;
     else if(cnt_tREFI >= DELAY_tREFI) 
         aref_req <= 1'b1;   
@@ -207,14 +210,15 @@ localparam  WTR             =   tWTR/tCK;
 
 reg         [COL_BITS-3:0]     init_col_addr;
 reg                  [5:0]     w_cnt;
+reg                  [5:0]     w_cnt_history;
 reg                  [5:0]     wrwait_cnt;
 reg                  [5:0]     rp_cnt;
 
-reg        [DQ_BITS*2-1:0]     wdata_1;
-reg        [DQ_BITS*2-1:0]     wdata_2;
-reg        [DQ_BITS*2-1:0]     wdata_3;
-reg          [DQ_BITS-1:0]     wdata_h;
-reg          [DQ_BITS-1:0]     wdata_l;
+reg        [DQ_BITS*2-1:0]     axi_wdata_1;
+reg        [DQ_BITS*2-1:0]     axi_wdata_2;
+reg        [DQ_BITS*2-1:0]     axi_wdata_3;
+reg          [DQ_BITS-1:0]     axi_wdata_h;
+reg          [DQ_BITS-1:0]     axi_wdata_l;
 
 
 reg          [DQ_BITS-1:0]     dq_pre;
@@ -223,35 +227,49 @@ wire                           dqs;
 wire                           dqs_n;
 reg                            dqm_pre;
 reg                            dqm;
-reg                  [5:0]     wr_data_after_cmd;
+wire                  [5:0]     wr_data_after_cmd;
+reg                  [5:0]     wr_data_after_cmd_0;
+reg                  [1:0]      wr_or_rd_to_aref;
 
 
 always @(posedge clk) begin
     if(!rst_n) begin
-    wdata_1 <= 'd0;
-    wdata_2 <= 'd0;
-    wdata_3 <= 'd0;
-  end else if(state == STATE_WRITE || state == STATE_WRWAIT) begin
+    axi_wdata_1 <= 'd0;
+    // axi_wdata_2 <= 'd0;
+    // axi_wdata_3 <= 'd0;
+  end else if(state == STATE_WRITE) begin
   // end else begin
-    wdata_1 <= wdata;
-    wdata_2 <= wdata_1;
-    wdata_3 <= wdata_2;
+    axi_wdata_1 <= axi_wdata;
+    // axi_wdata_2 <= axi_wdata_1;
+    // axi_wdata_3 <= axi_wdata_2;
   end
 end
 
 always @(posedge clk) begin
-  {wdata_h, wdata_l} <= wdata_2;
+    if(!rst_n) begin
+        axi_wdata_2 <= 'd0;
+        {axi_wdata_h, axi_wdata_l} <= 'd0;
+    end else begin
+        axi_wdata_2 <= axi_wdata_1;
+        {axi_wdata_h, axi_wdata_l} <= axi_wdata_2;
+
+    end
 end
 
-always @(posedge clk) begin
-  if(!rst_n) wr_data_after_cmd <= 'd9;
-  else if(w_cnt == WL) wr_data_after_cmd <= 'd0;
-  else if(wr_data_after_cmd < 'd9) wr_data_after_cmd <= wr_data_after_cmd + 'd1;
-end
+// always @(posedge clk) begin
+//   {axi_wdata_h, axi_wdata_l} <= axi_wdata_2;
+// end
 
+// always @(posedge clk) begin
+//   if(!rst_n) wr_data_after_cmd_0 <= axi_awlen + 'd1;
+//   else if(w_cnt == WL) wr_data_after_cmd_0 <= 'd0;
+//   else if(wr_data_after_cmd_0 < axi_awlen + 'd1 && wr_or_rd_to_aref != 2'b01) wr_data_after_cmd_0 <= wr_data_after_cmd_0 + 'd1;
+// end
+assign wr_data_after_cmd = w_cnt  >= WL + 'd1 ? w_cnt - WL - 'd1 : axi_awlen + 'd1;
+// assign wr_data_after_cmd = wr_or_rd_to_aref == 2'b01 ? axi_awlen + 'd1 : wr_data_after_cmd_0; 
 always @(posedge clk2) begin
-  if(wr_data_after_cmd >= 'd0 && wr_data_after_cmd <= 'd7) begin
-    dq_pre <= clk ? wdata_l : wdata_h;
+  if(wr_data_after_cmd >= 'd0 && wr_data_after_cmd < axi_awlen) begin
+    dq_pre <= clk ? axi_wdata_l : axi_wdata_h;
     dqm_pre <= 0;
   end else begin
     dq_pre <= 'dz;
@@ -278,33 +296,34 @@ localparam  RTP     =   tRTP/tCK;
 
 reg                   [5:0]     r_cnt;
 reg                   [5:0]     rdwait_cnt;
-reg                   [3:0]     rd_data_after_cmd;
-reg          [DQ_BITS-1:0]     rdata_l;
-reg          [DQ_BITS-1:0]     pre_rdata;
+wire                  [3:0]     rd_data_after_cmd;
+reg          [DQ_BITS-1:0]     axi_rdata_l;
+reg          [DQ_BITS-1:0]     pre_axi_rdata;
 
-assign rvalid = rd_data_after_cmd >= 'd1 && rd_data_after_cmd <= 'd8;   
-assign rlast  = rd_data_after_cmd == 'd8;
-always @(posedge clk) begin
-  if(!rst_n) rd_data_after_cmd <= 'd9;
-  else if(r_cnt == RL + 'd1) rd_data_after_cmd <= 'd0;
-  else if(rd_data_after_cmd < 'd9) rd_data_after_cmd <= rd_data_after_cmd + 'd1;
-end
+assign axi_rvalid = rd_data_after_cmd >= 'd1 && rd_data_after_cmd <= axi_arlen;   
+assign axi_rlast  = rd_data_after_cmd == axi_arlen;
+// always @(posedge clk) begin
+//   if(!rst_n) rd_data_after_cmd <= axi_arlen + 'd1;
+//   else if(r_cnt == RL + 'd1) rd_data_after_cmd <= 'd0;
+//   else if(rd_data_after_cmd < axi_arlen +'d1) rd_data_after_cmd <= rd_data_after_cmd + 'd1;
+// end
+assign rd_data_after_cmd = r_cnt >= RL + 'd2 ? r_cnt - RL - 'd2 : axi_arlen + 'd1;
 
 always @(posedge clk2) begin
-    if(rd_data_after_cmd >= 'd0 && rd_data_after_cmd <= 'd8) begin
-        rdata_l <= ddr2_dq;
-        pre_rdata <= {ddr2_dq,rdata_l};
+    if(rd_data_after_cmd >= 'd0 && rd_data_after_cmd <= axi_arlen) begin
+        axi_rdata_l <= ddr2_dq;
+        pre_axi_rdata <= {ddr2_dq,axi_rdata_l};
     end
 end
 
 
 always @(posedge clk) begin
-    if(rd_data_after_cmd >= 'd0 && rd_data_after_cmd <= 'd7) begin
-        rdata <= pre_rdata;
+    if(rd_data_after_cmd >= 'd0 && rd_data_after_cmd < axi_arlen) begin
+        axi_rdata <= pre_axi_rdata;
     end
 end
-assign dqs = wr_data_after_cmd >= 'd0 && wr_data_after_cmd <= 'd8 ? clk : 'dz;
-assign dqs_n = wr_data_after_cmd >= 'd0 && wr_data_after_cmd <= 'd8 ? !clk : 'dz;
+assign dqs = wr_data_after_cmd >= 'd0 && wr_data_after_cmd <= axi_awlen ? clk : 'dz;
+assign dqs_n = wr_data_after_cmd >= 'd0 && wr_data_after_cmd <= axi_awlen ? !clk : 'dz;
 assign ddr2_dq = dq;
 assign ddr2_dqs = dqs;
 assign ddr2_dqs_n = dqs_n;
@@ -323,24 +342,26 @@ wire                            same_to_rd;
 wire                            same_ba_col_w;
 wire                            same_ba_col_r;
 
-assign same_ba_col_w = (ba == awaddr[BA_BITS + ROW_BITS+COL_BITS-1:COL_BITS + ROW_BITS])
-                     && (row_addr == awaddr[ROW_BITS+COL_BITS-1:COL_BITS]);
-assign same_ba_col_r = (ba == araddr[BA_BITS + ROW_BITS+COL_BITS-1:COL_BITS + ROW_BITS])
-                     && (row_addr == araddr[ROW_BITS+COL_BITS-1:COL_BITS]);
+assign same_ba_col_w = (ba == axi_awaddr[BA_BITS + ROW_BITS+COL_BITS-1:COL_BITS + ROW_BITS])
+                     && (row_addr == axi_awaddr[ROW_BITS+COL_BITS-1:COL_BITS]);
+assign same_ba_col_r = (ba == axi_araddr[BA_BITS + ROW_BITS+COL_BITS-1:COL_BITS + ROW_BITS])
+                     && (row_addr == axi_araddr[ROW_BITS+COL_BITS-1:COL_BITS]);
 
-assign same_to_wr = aref_req == 1'b0 && awvalid == 1'b1 && same_ba_col_w == 1'b1;
-assign same_to_rd = aref_req == 1'b0 && arvalid == 1'b1 && same_ba_col_r == 1'b1;
+assign same_to_wr = aref_req == 1'b0 && axi_awvalid == 1'b1 && same_ba_col_w == 1'b1;
+assign same_to_rd = aref_req == 1'b0 && axi_arvalid == 1'b1 && same_ba_col_r == 1'b1;
 
-assign awready = aref_req == 1'b0 && (state == STATE_IDLE || (state == STATE_WRWAIT && same_ba_col_w == 1'b1)
+assign axi_awready = aref_req == 1'b0 && (state == STATE_IDLE || (state == STATE_WRWAIT && same_ba_col_w == 1'b1)
                                                           || (state == STATE_RDWAIT && same_ba_col_w == 1'b1));
-// reg awready_1;
-// assign awready = aref_req == 1'b0 && (state == STATE_IDLE || (awready_1 == 1'b1 && same_ba_col_w == 1'b1));
-assign wready = w_cnt >= 'd1 && w_cnt <= awlen;
-// reg arready_1;
-// assign arready =  aref_req == 1'b0 && (state == STATE_IDLE || (arready_1 == 1'b1 && same_ba_col_r == 1'b1));
-assign arready = aref_req == 1'b0 && !awvalid && ((state == STATE_IDLE ) || (state == STATE_WRWAIT && same_ba_col_r == 1'b1)
+
+assign axi_wready = w_cnt >= 'd1 && w_cnt <= axi_awlen;
+
+assign axi_arready = aref_req == 1'b0 && !axi_awvalid && ((state == STATE_IDLE ) || (state == STATE_WRTORD)
                                                                             || (state == STATE_RDWAIT && same_ba_col_r == 1'b1)) ;
 
+assign axi_bvalid = w_cnt > axi_awlen + WL ? 1'b1 : 1'b0;
+
+assign wr_stop_en = state == STATE_WRITE && w_cnt[0] == 1'b0;
+assign rd_stop_en = state == STATE_READ  && r_cnt[0] == 1'b0;
 
 reg         wr_en;
 reg [1:0]   act_cnt;
@@ -353,47 +374,37 @@ always @(posedge clk or negedge rst_n) begin
         ba <= 0 ;
         row_addr <= 'd0;
         init_col_addr <= 0;
-        // awready_1 <= 1'b0;
+        wr_or_rd_to_aref <= 2'b00;
+        // axi_awready_1 <= 1'b0;
     end else begin
         case (state) 
             STATE_INIT:   
                 if(init_end) begin
                     state <= STATE_IDLE;
                 end
-            // STATE_IDLE0: begin
-            //     state <= STATE_IDLE;
-                // awready_1 <= 1'b1;
-                // arready <= 1'b1; 
-            //  end
+
             STATE_IDLE:   begin
                 if(aref_req) begin 
                     state <= STATE_AREF;
                     cmd <= NOP;
                     ref_cnt <= 8'd0;
-                    // awready_1 <= 1'b0;
-                    // arready_1 <= 1'b0;
                 end
-                else if(awvalid) begin 
-                    // awready_1 <= 1'b0;
-                    // arready_1 <= 1'b0;
+                else if(axi_awvalid) begin 
                     act_cnt <= 6'd0;    
                     wr_en <= 1'b1;  
                     cmd <= ACT;
-                    {ba, addr} <= awaddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
-                    row_addr <= awaddr[ROW_BITS+COL_BITS-1:COL_BITS];
-                    init_col_addr <= awaddr[COL_BITS-1:2];
-                    // state <= STATE_WRITE; 
+                    {ba, addr} <= axi_awaddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
+                    row_addr <= axi_awaddr[ROW_BITS+COL_BITS-1:COL_BITS];
+                    init_col_addr <= axi_awaddr[COL_BITS-1:2];
                     state <= STATE_ACT;
                 end 
-                else if(arvalid) begin
-                    // awready_1 <= 1'b0;
-                    // arready_1 <= 1'b0;
+                else if(axi_arvalid) begin
                     act_cnt <= 6'd0;
                     wr_en <= 1'b0;
                     cmd <= ACT;
-                    {ba, addr} <= araddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
-                    row_addr <= araddr[ROW_BITS+COL_BITS-1:COL_BITS];
-                    init_col_addr <= araddr[COL_BITS-1:2];
+                    {ba, addr} <= axi_araddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
+                    row_addr <= axi_araddr[ROW_BITS+COL_BITS-1:COL_BITS];
+                    init_col_addr <= axi_araddr[COL_BITS-1:2];
                     state <= STATE_ACT;
                 end
                 else 
@@ -405,10 +416,34 @@ always @(posedge clk or negedge rst_n) begin
                 case(ref_cnt)
                     0:          begin cmd <= PRE; addr <= ALLPRE_ADDR;end
                     RPA:        cmd <= AREF;
-                    RPA+RFC:    state <= STATE_IDLE;
+                    RPA+RFC:begin  
+                        if(wr_or_rd_to_aref == 2'b00) 
+                            state <= STATE_IDLE;
+                        // else if(wr_or_rd_to_aref == 2'b01) begin  
+                        //     cmd <= ACT;
+                        //     {ba, addr} <= axi_awaddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
+                        //     row_addr <= axi_awaddr[ROW_BITS+COL_BITS-1:COL_BITS];
+                        //     init_col_addr <= axi_awaddr[COL_BITS-1:2];
+                        //     state <= STATE_RETOWR;
+                        //     re_cnt <= 2'd0;
+                        // end
+                        
+
+                    end
                     default:    cmd <= NOP;
                 endcase
             end
+            // STATE_RETOWR:begin
+            //     re_cnt <= re_cnt + 'd1;
+            //     if(re_cnt == 'd1) begin
+            //         cmd <= WRITE;
+            //         state <= STATA_WRITE;
+            //         w_cnt <= w_cnt_history;
+            //         wr_or_rd_to_aref <= 2'b11;
+            //     end else 
+            //         cmd <= NOP;
+            // end
+
 
             STATE_ACT: begin
                 act_cnt <= act_cnt + 'd1;
@@ -416,13 +451,9 @@ always @(posedge clk or negedge rst_n) begin
                     if(wr_en) begin
                         state <= STATE_WRITE;
                         w_cnt <= 'd0;
-                        // cmd <= WRITE;
-                        // addr <= {init_col_addr, 2'b0};   
                     end else begin
                         state <= STATE_READ;
                         r_cnt <= 'd0;
-                        // cmd <= READ;
-                        // addr <= {init_col_addr, 2'b0};
                     end
                 end 
                 cmd <= NOP;
@@ -430,10 +461,10 @@ always @(posedge clk or negedge rst_n) begin
 
             STATE_WRITE: begin 
                 // w_cnt <= w_cnt + 1;
-                // if(w_cnt == awlen ) begin
+                // if(w_cnt == axi_awlen ) begin
                 //     state <= STATE_WRWAIT;   
-                //     bvalid <= 1'b1;
-                //     // awready_1 <= 1'b1;
+                //     axi_bvalid <= 1'b1;
+                //     // axi_awready_1 <= 1'b1;
                 //     cmd <= NOP;
                 // end
                 // else if(wvalid) begin
@@ -443,21 +474,31 @@ always @(posedge clk or negedge rst_n) begin
                 //     end else
                 //         cmd <= NOP;
                 // end
+                // if(aref_req && wr_stop_en) begin
+                //     w_cnt_history <= w_cnt+1;
+                //     w_cnt <= axi_awlen + 1;
+                //     state <= STATE_AREF;
+                //     ref_cnt <= 'd0;
+                //     wr_or_rd_to_aref <= 2'b01;
+                // end else 
+                // begin 
+                    
                 w_cnt <= w_cnt + 'd1;
-                if(wvalid ) begin
+                if(axi_wvalid ) begin
                     if(w_cnt[0] == 1'b0) begin
                         cmd <= WRITE;
                         addr <= {init_col_addr + (w_cnt >> 1), 2'b0};
                     end else
                         cmd <= NOP;
                 end 
-                if(wlast)begin
-                    state <= STATE_WRWAIT;  
-                    bvalid <= 1'b1;
-                    // awready_1 <= 1'b1;
+                if(axi_wlast)begin
+                    state <= STATE_WROVER;  
+                    // axi_bvalid <= 1'b1;
+                    // axi_awready_1 <= 1'b1;
                     cmd <= NOP;
-                end
-                // bvalid <= w_cnt == awlen + 1;
+                // end
+            end
+                // axi_bvalid <= w_cnt == axi_awlen + 1;
                 // ------------------------------------------------------------------------------------------
                 // TODO1:当写数据突发长度较长，在写数据时，数据刷新请求到来，需要先保存当前状态，再去执行刷新，然后再回来
                 // ------------------------------------------------------------------------------------------
@@ -465,22 +506,22 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             // ------------------------------------------------------------------------------------------
-            // 1、下一次写请求到来，且在同一bank、row, 需要等到前面的 cmd 、wdata,等 都给到，后续信号才响应 
+            // 1、下一次写请求到来，且在同一bank、row, 需要等到前面的 cmd 、axi_wdata,等 都给到，后续信号才响应 
             // 2、在写数据完全传输到总线上后，转为另一等待状态，
             // 3、这一等待状态可以接收更多其他请求
             // ------------------------------------------------------------------------------------------
-            // STATE_WDATA: begin
+            // STATE_axi_wdata: begin
             //     if(same_to_wr) begin          
-            //         awready_1 <= 1'b0;
+            //         axi_awready_1 <= 1'b0;
             //         w_cnt <= 'd0; 
-            //         init_col_addr <= awaddr[COL_BITS-1:2];
+            //         init_col_addr <= axi_awaddr[COL_BITS-1:2];
             //         state <= STATE_WRITE;                        
             //         cmd <= WRITE;
-            //         addr <= {awaddr[COL_BITS-1:2], 2'b0};  
+            //         addr <= {axi_awaddr[COL_BITS-1:2], 2'b0};  
             //     end 
             //     else begin
             //         w_cnt <= w_cnt + 1;
-            //         if (w_cnt > awlen + WL - 1) begin
+            //         if (w_cnt > axi_awlen + WL - 1) begin
             //             state <= STATE_WRWAIT;
             //             wrwait_cnt <= 'd0;
             //             //读写优先级，同时到来写优先，但是读先来就先读
@@ -488,13 +529,18 @@ always @(posedge clk or negedge rst_n) begin
             //         end
             //     end
             // end
+            STATE_WROVER: begin
+                w_cnt <= w_cnt + 'd1;
+                if (w_cnt == axi_awlen + WL) 
+                    state <= STATE_WRWAIT;
 
+            end
             // ------------------------------------------------------------------------------------------
-            // 下一次写请求到来，且在同一bank、row, 需要等到前面的 cmd 、wdata,等 都给到，后续信号才响应
+            // 下一次写请求到来，且在同一bank、row, 需要等到前面的 cmd 、axi_wdata,等 都给到，后续信号才响应
             // 还可以接受 不同行操作（读/写）、同行读、刷新操作等 ，需要等待写恢复时间。。。
             // ------------------------------------------------------------------------------------------
             STATE_WRWAIT: begin
-                if(w_cnt < awlen + WL + WR + 1)
+                if(w_cnt < axi_awlen + WL + WR + 1)
                     w_cnt <= w_cnt + 1'b1;
                 // cmd <= NOP;
                 //写请求到来，且同一bank,row,不需要写恢复
@@ -502,10 +548,10 @@ always @(posedge clk or negedge rst_n) begin
                     // if(rd_or_wr == 1'b0) begins  
                         state <= STATE_WRITE;
                         w_cnt <= 'd0;
-                        init_col_addr <= awaddr[COL_BITS-1:2];
-                        // awready_1 <= 1'b0;
+                        init_col_addr <= axi_awaddr[COL_BITS-1:2];
+                        // axi_awready_1 <= 1'b0;
                         // cmd <= WRITE;
-                        // addr <= {awaddr[COL_BITS-1:2], 2'b0};  
+                        // addr <= {axi_awaddr[COL_BITS-1:2], 2'b0};  
                     // end
                 end
                 //读请求到来,同一～，需要写恢复
@@ -514,32 +560,32 @@ always @(posedge clk or negedge rst_n) begin
                     // rd_or_wr <= 1'b1;
                     // if (wrwait_cnt >= 2) begin
                     //     r_cnt <= 'd2;
-                    //     init_col_addr <= araddr[COL_BITS-1:2];
-                    //     addr <= {araddr[COL_BITS-1:2], 2'b0};
+                    //     init_col_addr <= axi_araddr[COL_BITS-1:2];
+                    //     addr <= {axi_araddr[COL_BITS-1:2], 2'b0};
                     //     cmd <= READ;
                     //     state <= STATE_READ;
                     // end
                     state <= STATE_WRTORD;
-                    // awready_1 <= 1'b0;
+                    // axi_awready_1 <= 1'b0;
                 end
                 
                 // 读/写请求不在同一bank/row、刷新请求到来，需要写恢复
-                else if(awvalid == 1'b1 || aref_req == 1'b1 || arvalid == 1'b1) begin
+                else if(axi_awvalid == 1'b1 || aref_req == 1'b1 || axi_arvalid == 1'b1) begin
                     // state <= STATE_PRE;
                     // rp_cnt <= 'd0;
                     // cmd <= PRE;
                     // addr <= ALLPRE_ADDR;
                     state <= STATE_WRTOPRE;
-                    // awready_1 <= 1'b0;      
+                    // axi_awready_1 <= 1'b0;      
                 end
             end
             
             STATE_WRTORD:begin
                 w_cnt <= w_cnt + 1;
-                if(w_cnt >= awlen + WL + WTR)  begin
+                if(w_cnt >= axi_awlen + WL + WTR)  begin
                     r_cnt <= 'd0;
-                    init_col_addr <= araddr[COL_BITS-1:2];
-                    // addr <= {araddr[COL_BITS-1:2], 2'b0};
+                    init_col_addr <= axi_araddr[COL_BITS-1:2];
+                    // addr <= {axi_araddr[COL_BITS-1:2], 2'b0};
                     // cmd <= READ;
                     state <= STATE_READ;
                 end
@@ -547,7 +593,7 @@ always @(posedge clk or negedge rst_n) begin
             
             STATE_WRTOPRE: begin
                 w_cnt <= w_cnt + 1;
-                if(w_cnt == awlen + WL + WR) begin
+                if(w_cnt == axi_awlen + WL + WR) begin
                     state <= STATE_PRE;
                     rp_cnt <= 'd0;
                     cmd <= PRE;         
@@ -567,12 +613,12 @@ always @(posedge clk or negedge rst_n) begin
             STATE_READ: begin
                 r_cnt <= r_cnt + 1;
 
-                if(r_cnt == arlen) begin 
-                    state <= STATE_RDWAIT;
+                if(r_cnt == axi_arlen) begin 
+                    state <= STATE_RDOVER;
                     cmd <= NOP;
                 end
                 // else if(rready) begin
-                else if(rready) begin 
+                else if(axi_rready) begin 
                     if(r_cnt[0] == 1'b0) begin
                         cmd <= READ;
                         addr <= {init_col_addr + (r_cnt >> 1), 2'b0};
@@ -581,29 +627,35 @@ always @(posedge clk or negedge rst_n) begin
                 end
             end
 
+            STATE_RDOVER:begin
+                r_cnt <= r_cnt + 1;
+                if(r_cnt == axi_arlen + RL + 'd1)
+                    state <= STATE_RDWAIT;
+            end
+
             STATE_RDWAIT: begin
-                if(r_cnt < arlen + RL + RTP)
+                if(r_cnt < axi_arlen + RL + RTP)
                     r_cnt <= r_cnt + 1;
                 if(same_to_rd) begin
                     r_cnt <= 'd0;
-                    init_col_addr <= araddr[COL_BITS-1:2];
+                    init_col_addr <= axi_araddr[COL_BITS-1:2];
                     state <= STATE_READ;
                 end 
                 else if(same_to_wr) begin
                     w_cnt <= 'd0;
-                    init_col_addr <= awaddr[COL_BITS-1:2];
-                    // addr <= {araddr[COL_BITS-1:2], 2'b0};
+                    init_col_addr <= axi_awaddr[COL_BITS-1:2];
+                    // addr <= {axi_araddr[COL_BITS-1:2], 2'b0};
                     // cmd <= WRITE;
                     state <= STATE_WRITE;
                 end 
-                else if(arvalid == 1'b1 || awvalid == 1'b1 || aref_req == 1'b1) begin
+                else if(axi_arvalid == 1'b1 || axi_awvalid == 1'b1 || aref_req == 1'b1) begin
                     state <= STATE_RDTOPRE;
                 end
              end
 
              STATE_RDTOPRE: begin
                 r_cnt <= r_cnt + 1;
-                if(r_cnt >= arlen + RL ) begin
+                if(r_cnt >= axi_arlen + RL ) begin
                     state <= STATE_PRE;
                     rp_cnt <= 'd0;
                     cmd <= PRE;
