@@ -1,4 +1,4 @@
-TOP_NAME := tb_rd
+TOP_NAME := tb_wr_aref
 
 RTL_FLIST := -f ../filelist/rtl.f \
 
@@ -17,7 +17,7 @@ SIM_OPTIONS  := -full64 -debug_acc+all +v2k -sverilog  \
 
 WAVE_TOOL := verdi
 
-WAVE_FILE := tb_rd.fsdb
+WAVE_FILE := ${TOP_NAME}.fsdb
 
 
 comp :	

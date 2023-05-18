@@ -82,8 +82,8 @@ reg      [ADDR_WIDTH-1:0]   rd_addr;
 wire                        rd_ready;   
 wire                        rd_done;
 
-assign wr_len = 'd8;
-assign rd_len = 'd8;
+assign wr_len = 'd32;
+assign rd_len = 'd48;
 
 reg                         op_start;    
 reg                         op_start_rd;    
@@ -114,7 +114,7 @@ initial begin
     $dumpfile("tb_rd.fsdb");
     $dumpvars(0,tb_rd);
 end
-localparam wr_delay = 'd20;
+localparam wr_delay = 'd50;
 always @(posedge clk) begin
     if(op_start == 1'b0)
         cnt <= 'd0;
@@ -141,13 +141,13 @@ always @(posedge clk) begin
         if(wr_data_en)
             wr_data <= wr_data + 'd1;
         if(wr_done)
-            wr_addr <= wr_addr + 'd16;
+            wr_addr <= wr_addr + wr_len + wr_len;
     end
 
 end
 
 
-localparam rd_delay = 'd30;
+localparam rd_delay = 'd110;
 always @(posedge clk) begin
     if(op_start == 1'b0)
         cnt_rd <= 'd0;
@@ -173,7 +173,7 @@ always @(posedge clk) begin
         if(rd_data_en)
             rd_data_accept <= rd_data;
         if(rd_done)
-            rd_addr <= rd_addr + 'd16;
+            rd_addr <= rd_addr + rd_len + rd_len;
     end
 end
 

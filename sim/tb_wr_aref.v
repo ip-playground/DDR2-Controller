@@ -12,7 +12,7 @@
  */
 `timescale 1ps / 1ps
 `include "../rtl/define.v" 
-module tb_wr();
+module tb_wr_aref();
 parameter   BA_BITS     =   3;
 parameter   ADDR_BITS   =   14; // Address Bits
 parameter   ROW_BITS    =   14; // Number of Address bits
@@ -73,7 +73,7 @@ reg      [ADDR_WIDTH-1:0]   wr_addr;
 wire                        wr_ready;
 wire                        wr_done;
 
-assign wr_len = 'd64;
+assign wr_len = 'd72;
 
 reg                         op_start;       
 integer cnt;              
@@ -90,15 +90,15 @@ initial begin
     rstn_async <= 1'b1;
     #305000000;
     op_start <= 1'b1;
-    #5500000;
+    #6000000;
     $finish(0);
 end
 
 initial begin
-    $dumpfile("tb_wr.fsdb");
-    $dumpvars(0,tb_wr);
+    $dumpfile("tb_wr_aref.fsdb");
+    $dumpvars(0,tb_wr_aref);
 end
-localparam wr_delay = 'd90;
+localparam wr_delay = 'd100;
 always @(posedge clk) begin
     if(op_start == 1'b0)
         cnt <= 'd0;

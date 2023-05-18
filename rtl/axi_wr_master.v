@@ -90,6 +90,7 @@ always @(posedge clk) begin
                     axi_awvalid <= 1'b1;
                     axi_awaddr <= wr_addr;
                    
+                        wr_data_cnt <= 'd1;
                 end
             end
 

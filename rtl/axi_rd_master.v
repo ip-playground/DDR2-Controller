@@ -71,7 +71,6 @@ assign rd_data = axi_rdata;
 // assign axi_arsize = 2'b01;
 //默认地址递增
 //assign arburst = 2'b01;
-assign axi_rlast = rd_data_cnt == 'd0 ? 1'b1 : 1'b0;
 
 
 always @(posedge clk) begin
