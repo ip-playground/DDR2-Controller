@@ -9,7 +9,6 @@
  *
  *******************************************************************************
  */
-`include "../rtl/define.v" 
 
 module axi_rd_master #(
     parameter           ADDR_WIDTH  = 27,
@@ -19,7 +18,7 @@ module axi_rd_master #(
     parameter   [7:0]   WBURST_LEN  = 8'd8,
     parameter   [7:0]   RBURST_LEN  = 8'd8 
 )(
-    input   wire                        rstn,
+    input   wire                        rst_n,
     input   wire                        clk,
     input   wire                        init_end,
 
@@ -74,7 +73,7 @@ assign rd_data = axi_rdata;
 
 
 always @(posedge clk) begin
-    if(!rstn) begin
+    if(!rst_n) begin
         state_r <= IDLE;
         axi_arvalid <= 1'b0;
         axi_arlen <= 'd0;

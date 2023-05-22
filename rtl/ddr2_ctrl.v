@@ -10,7 +10,6 @@
  *
  *******************************************************************************
  */
-`include "../rtl/define.v"
 module ddr2_ctrl #(
     parameter   BA_BITS     =   3,
     parameter   ADDR_BITS   =   14, // Address Bits
@@ -21,10 +20,13 @@ module ddr2_ctrl #(
     parameter   DQS_BITS    =   1 // Number of Dqs bits
 )
 (
-    output  reg                                         clk,
-    output  reg                                         rst_n,
-    input   wire                                        clk800m,
-    input   wire                                        rstn_async,
+    // output  reg                                         clk,
+    // output  reg                                         rst_n,
+    // input   wire                                        clk800m,
+    input                                               clk,
+    input                                               clk2,
+    input                                               rst_n,
+    // input   wire                                        rstn_async,
     output  wire                                        init_end,
 
     input   wire                                        axi_awvalid,
@@ -76,48 +78,48 @@ parameter   tWR     =   15;             // WRITE recovery
 parameter   tWTR     =  10;             // Internal WRITE-to-READ delay  7.5
 parameter   tRTP    =   10;             // Internal READ-to-PRECHARGE delay 7.5
 
-// -------------------------------------------------------------------------------------
-//   clock and reset 
-// ------------------------------------------------------------------------------------------------------------------------
-// generate reset sync with clk800m
-// -------------------------------------------------------------------------------------
-reg       rstn_clk   ;
-reg [1:0] rstn_clk_l ;
-always @ (posedge clk800m or negedge rstn_async)
-    if(~rstn_async)
-        {rstn_clk, rstn_clk_l} <= 'd0;
-    else
-        {rstn_clk, rstn_clk_l} <= {rstn_clk_l, 1'b1};
+// // -------------------------------------------------------------------------------------
+// //   clock and reset 
+// // ------------------------------------------------------------------------------------------------------------------------
+// // generate reset sync with clk800m
+// // -------------------------------------------------------------------------------------
+// reg       rstn_clk   ;
+// reg [1:0] rstn_clk_l ;
+// always @ (posedge clk800m or negedge rstn_async)
+//     if(~rstn_async)
+//         {rstn_clk, rstn_clk_l} <= 'd0;
+//     else
+//         {rstn_clk, rstn_clk_l} <= {rstn_clk_l, 1'b1};
 
-// -------------------------------------------------------------------------------------
-//   generate cloclks
-// -------------------------------------------------------------------------------------
-reg clk2;
-always @ (posedge clk800m or negedge rstn_clk)
-    if(~rstn_clk)
-        {clk,clk2} <= 2'b00;
-    else
-        {clk,clk2} <= {clk,clk2} + 2'b01;
+// // -------------------------------------------------------------------------------------
+// //   generate cloclks
+// // -------------------------------------------------------------------------------------
+// reg clk2;
+// always @ (posedge clk800m or negedge rstn_clk)
+//     if(~rstn_clk)
+//         {clk,clk2} <= 2'b00;
+//     else
+//         {clk,clk2} <= {clk,clk2} + 2'b01;
 
-// -------------------------------------------------------------------------------------
-// generate reset sync with clk
-// -------------------------------------------------------------------------------------
-reg       rstn_aclk   ;
-reg [2:0] rstn_aclk_l ;
-always @ (posedge clk or negedge rstn_async)
-    if(~rstn_async)
-        {rstn_aclk, rstn_aclk_l} <= 'd0;
-    else
-        {rstn_aclk, rstn_aclk_l} <= {rstn_aclk_l, 1'b1};
+// // -------------------------------------------------------------------------------------
+// // generate reset sync with clk
+// // -------------------------------------------------------------------------------------
+// reg       rstn_aclk   ;
+// reg [2:0] rstn_aclk_l ;
+// always @ (posedge clk or negedge rstn_async)
+//     if(~rstn_async)
+//         {rstn_aclk, rstn_aclk_l} <= 'd0;
+//     else
+//         {rstn_aclk, rstn_aclk_l} <= {rstn_aclk_l, 1'b1};
 
-// -------------------------------------------------------------------------------------
-//   generate user reset
-// -------------------------------------------------------------------------------------
-always @ (posedge clk or negedge rstn_aclk)
-    if(~rstn_aclk)
-        rst_n <= 1'b0;
-    else
-        rst_n <= 1'b1;
+// // -------------------------------------------------------------------------------------
+// //   generate user reset
+// // -------------------------------------------------------------------------------------
+// always @ (posedge clk or negedge rstn_aclk)
+//     if(~rstn_aclk)
+//         rst_n <= 1'b0;
+//     else
+//         rst_n <= 1'b1;
 
 // -------------------------------------------------------------------------------------
 //   state
@@ -160,9 +162,10 @@ localparam  ACT             =   4'b0011;
 localparam  DELAY_tREFI     =   tREFI/tCK;
 localparam  RPA             =   tRPA/tCK;
 localparam  RFC             =   tRFC/tCK;
-localparam  ALLPRE_ADDR     =   (ADDR_BITS)'('b0_0100_0000_0000);           
-localparam  AL              =   tRCD/tCK - 2;
-localparam  WL              =   AL + CL - 1;    
+// localparam  ALLPRE_ADDR     =   (ADDR_BITS)'('b0_0100_0000_0000);           
+localparam  ALLPRE_ADDR     =   13'b0_0100_0000_0000;           
+localparam  AL              =   tRCD/tCK - 1; //2
+localparam  WL              =   AL + CL - 1;    //4
 localparam  RL              =   AL + CL;    
 localparam  WR              =   tWR/tCK;
 localparam  WTR             =   tWTR/tCK;
@@ -274,11 +277,22 @@ always @(posedge clk) begin
     end else begin
         axi_wdata_2 <= axi_wdata_1;
         {axi_wdata_h, axi_wdata_l} <= axi_wdata_2;
+        // {axi_wdata_h, axi_wdata_l} <= axi_wdata_1;
     end
 end
 
+// always @(posedge clk2) begin
+//   if(wr_pipe[WL-1]) begin
+//     dq <= clk ? axi_wdata_l : axi_wdata_h;
+//     dqm <= 0;
+//   end else begin
+//     dq <= 'dz;
+//     dqm <= 'dz;
+//   end
+// end
 always @(posedge clk2) begin
-  if(wr_pipe[WL-1]) begin
+  if(wr_pipe[WL-2]) begin
+//   if(wr_pipe[WL-2]) begin
     dq_pre <= clk ? axi_wdata_l : axi_wdata_h;
     dqm_pre <= 0;
   end else begin
@@ -287,7 +301,6 @@ always @(posedge clk2) begin
   end
 end
 
-//delay
 always @(posedge clk2) begin
   if(!rst_n) begin
     dq <= 'dz;
@@ -299,8 +312,10 @@ always @(posedge clk2) begin
   end
 end
 
-assign dqs = wr_pipe[WL] | wr_pipe[WL-1] ? clk : 'dz;
-assign dqs_n = wr_pipe[WL] | wr_pipe[WL-1] ? !clk : 'dz;
+// assign dqs = wr_pipe[WL] | wr_pipe[WL-1] ? clk : 'dz;
+// assign dqs_n = wr_pipe[WL] | wr_pipe[WL-1] ? !clk : 'dz;
+assign dqs = wr_pipe[WL-2] | wr_pipe[WL-1] ? clk : 'dz;
+assign dqs_n = wr_pipe[WL-2] | wr_pipe[WL-1] ? !clk : 'dz;
 assign ddr2_dq = dq;
 assign ddr2_dqs = dqs;
 assign ddr2_dqs_n = dqs_n;
@@ -446,17 +461,24 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             STATE_ACT: begin
-                act_cnt <= act_cnt + 'd1;
-                if(act_cnt == 'd0 ) begin
+                // act_cnt <= act_cnt + 'd1;
+                // if(act_cnt == 'd0 ) begin
                     if(wr_en) begin
                         state <= STATE_WRITE;
-                        wr_cnt <= 'd0;
+                        // wr_cnt <= 'd0;
+                        wr_cnt <= 'd1;
+                        cmd <= WRITE;
+                        addr <= {init_col_addr, 2'b0};
+
                     end else begin
                         state <= STATE_READ;
-                        rd_cnt <= 'd0;
+                        // rd_cnt <= 'd0;
+                        wr_cnt <= 'd1;
+                        cmd <= WRITE;
+                        addr <= {init_col_addr, 2'b0};
                     end
-                end 
-                cmd <= NOP;
+                // end 
+                // cmd <= NOP;
             end
 
             STATE_WRITE: begin 
@@ -491,20 +513,22 @@ always @(posedge clk or negedge rst_n) begin
             STATE_WRTOAREF:begin
                 if(to_aref_cnt < WL + WR)
                     to_aref_cnt <= to_aref_cnt + 'd1;
-                else 
+                else begin
                     state <= STATE_AREF;
+                    ref_cnt <= 'd0;
+                end
             end
 
             STATE_RETURNWR:begin
-                act_cnt <= act_cnt + 'd1;
-                if(act_cnt == 'd1) begin
+                // act_cnt <= act_cnt + 'd1;
+                // if(act_cnt == 'd1) begin
                     cmd <= WRITE;
                     state <= STATE_WRITE;
                     wr_cnt <= wr_cnt_history;
                     wr_or_rd_to_aref <= 2'b00;
                     addr <= {init_col_addr + ((wr_cnt_history-'d1) >> 1), 2'b0};
-                end else 
-                    cmd <= NOP;
+                // end else 
+                //     cmd <= NOP;
             end
             // ------------------------------------------------------------------------------------------
             // 1、下一次写请求到来，且在同一bank、row, 需要等到前面的 cmd 、axi_wdata,等 都给到，后续信号才响应 
@@ -592,20 +616,22 @@ always @(posedge clk or negedge rst_n) begin
             STATE_RDTOAREF:begin
                 if(to_aref_cnt < Delay_RD_TO_PRE)
                     to_aref_cnt <= to_aref_cnt + 'd1;
-                else 
+                else begin
+                    ref_cnt <= 'd0;
                     state <= STATE_AREF;
+                end
             end
 
             STATE_RETURNRD:begin
-                act_cnt <= act_cnt + 'd1;
-                if(act_cnt == 'd1) begin
+                // act_cnt <= act_cnt + 'd1;
+                // if(act_cnt == 'd1) begin
                     cmd <= READ;
                     state <= STATE_READ;
                     wr_or_rd_to_aref <= 2'b00;
-                    addr <= {init_col_addr + ((wr_cnt) >> 1), 2'b0};
+                    addr <= {init_col_addr + ((rd_cnt) >> 1), 2'b0};
                     // addr <= {init_col_addr + ((wr_cnt-'d1) >> 1), 2'b0};
-                end else 
-                    cmd <= NOP;
+                // end else 
+                //     cmd <= NOP;
             end
 
             // STATE_RDOVER:begin

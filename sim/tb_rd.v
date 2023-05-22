@@ -11,7 +11,7 @@
  *******************************************************************************
  */
 `timescale 1ps / 1ps
-`include "../rtl/define.v" 
+// `include "../rtl/define.v" 
 module tb_rd();
 parameter   BA_BITS     =   3;
 parameter   ADDR_BITS   =   14; // Address Bits
@@ -26,10 +26,10 @@ parameter           DATA_LEVEL  = 2;
 parameter   [7:0]   WBURST_LEN   = 8'd8;  
 parameter   [7:0]   RBURST_LEN   = 8'd8;  
 
-wire                        clk;
-reg                         clk800m;
-wire                        rst_n;
-reg                         rstn_async;
+wire                       clk;
+wire                       clk2;
+reg                        clk100m;
+reg                        rst_n;
 
 wire                        axi_awvalid;
 wire                        axi_awready;
@@ -90,30 +90,32 @@ reg                         op_start_rd;
 integer cnt;        
 integer cnt_rd;        
 
-always #625 clk800m = ~clk800m;
+// always #625 clk800m = ~clk800m;
+always #5000 clk100m = ~clk100m;
 
 wire init_end;
 
 initial begin
-    clk800m <= 1'b1;
-    rstn_async <= 1'b0;
+    // clk800m <= 1'b1;
+    clk100m <= 1'b1;
+    rst_n <= 1'b0;
     op_start <= 1'b0;
     op_start_rd <= 1'b0;
-    repeat(4) @(posedge clk800m);
-    rstn_async <= 1'b1;
+    repeat(4) @(posedge clk100m);
+    rst_n <= 1'b1;
     #305000000;
     op_start <= 1'b1;
     #5500000;
     // op_start <= 1'b0;
     // op_start_rd <= 1'b1;
     // #2500000;
-    $finish(0);
+    // $finish(0);
 end
 
-initial begin
-    $dumpfile("tb_rd.fsdb");
-    $dumpvars(0,tb_rd);
-end
+// initial begin
+//     $dumpfile("tb_rd.fsdb");
+//     $dumpvars(0,tb_rd);
+// end
 localparam wr_delay = 'd50;
 always @(posedge clk) begin
     if(op_start == 1'b0)
@@ -177,6 +179,19 @@ always @(posedge clk) begin
     end
 end
 
+
+wire locked;
+clk_wiz_0 instance_name
+   (
+    // Clock out ports
+    .clk_out1(clk),     // output clk_out1
+    .clk_out2(clk2),     // output clk_out2
+    // Status and control signals
+    .reset(!rst_n), // input reset
+    .locked(locked),       // output locked
+   // Clock in ports
+    .clk_in1(clk100m));      // input clk_in1
+
 axi_rd_master #(
     .ADDR_WIDTH     ( ADDR_WIDTH     ),
     .DATA_WIDTH     ( DATA_WIDTH     ),
@@ -184,7 +199,7 @@ axi_rd_master #(
     .WBURST_LEN     ( WBURST_LEN  ),
     .RBURST_LEN     ( RBURST_LEN  )
 ) axi_rd_master_inst (
-    .rstn                       (rst_n),
+    .rst_n                       (rst_n),
     .clk                        (clk),
     .init_end                   (init_end),
 
@@ -214,7 +229,7 @@ axi_wr_master #(
     .WBURST_LEN     ( WBURST_LEN  ),
     .RBURST_LEN     ( RBURST_LEN  )
 ) axi_wr_master_inst (
-    .rstn                       (rst_n),
+    .rst_n                       (rst_n),
     .clk                        (clk),
     .init_end                   (init_end),
 
@@ -240,9 +255,8 @@ axi_wr_master #(
 
 ddr2_ctrl ddr2_ctrl_inst (
     .clk                        (clk),
-    .clk800m                    (clk800m),
-    .rst_n                      (rst_n),
-    .rstn_async                 (rstn_async),
+    .clk2                    (clk2),
+    .rst_n                 (rst_n),
     .init_end                   (init_end),
     .axi_awvalid                (axi_awvalid),
     .axi_awready                (axi_awready),

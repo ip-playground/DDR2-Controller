@@ -9,7 +9,6 @@
  *
  *******************************************************************************
  */
-`include "../rtl/define.v" 
 
 module axi_wr_master #(
     parameter           ADDR_WIDTH  = 27,
@@ -19,7 +18,7 @@ module axi_wr_master #(
     parameter   [7:0]   WBURST_LEN  = 8'd8,
     parameter   [7:0]   RBURST_LEN  = 8'd8 
 )(
-    input   wire                        rstn,
+    input   wire                        rst_n,
     input   wire                        clk,
     input   wire                        init_end,
 
@@ -55,7 +54,7 @@ reg     [7:0]   wr_data_cnt;
 parameter   IDLE    = 3'b000;
 parameter   AW      = 3'b001;
 parameter   AW1     = 3'b011;
-parameter   W       = 3'b010;   
+parameter   W       = 3'b010;
 parameter   B       = 3'b110;
 parameter   DONE    = 3'b100;
 
@@ -76,7 +75,7 @@ assign axi_bready = state_w == B ? 1'b1 : 1'b0;
 
 
 always @(posedge clk) begin
-    if(!rstn) begin
+    if(!rst_n) begin
         state_w <= IDLE;
         axi_awvalid <= 1'b0;
         axi_wvalid <= 1'b0;
