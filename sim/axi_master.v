@@ -40,6 +40,7 @@ module axi_master #(
     output  wire              [7:0]     arlen,
     input   wire                        rvalid,
     output  wire                        rready,
+    
     input   wire                        rlast,
     input   wire    [DATA_WIDTH-1:0]    rdata
 

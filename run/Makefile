@@ -1,13 +1,11 @@
-NOVAS	:= /eda/tools/snps/verdi/R-2020.12/share/PLI/VCS/LINUX64
-EXTRA	:= -P ${NOVAS}/novas.tab\
-		${NOVAS}/pli.a
+TOP_NAME := tb_wr_aref
+
 RTL_FLIST := -f ../filelist/rtl.f \
 
 TB_FLIST :=  -f ../filelist/tb.f \
 
 SIM_TOOL     := vcs
 SIM_OPTIONS  := -full64 -debug_acc+all +v2k -sverilog  \
-                ${EXTRA} \
 				-kdb \
  				+error+500 \
                 +notimingcheck \
@@ -19,11 +17,11 @@ SIM_OPTIONS  := -full64 -debug_acc+all +v2k -sverilog  \
 
 WAVE_TOOL := verdi
 
-WAVE_FILE := tb.fsdb
+WAVE_FILE := ${TOP_NAME}.fsdb
 
 
 comp :	
-	${SIM_TOOL} ${SIM_OPTIONS} ${TB_FLIST} ${RTL_FLIST} -top tb -l compile.log
+	${SIM_TOOL} ${SIM_OPTIONS} ${TB_FLIST} ${RTL_FLIST} -top ${TOP_NAME} -l compile.log
 
 sim:
 	./simv -l run.log 

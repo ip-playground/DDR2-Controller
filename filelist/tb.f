@@ -1,1 +1,4 @@
-/home/caoshiyang/ddr2/DDR2-Controller/sim/tb.v
+// ../sim/tb.v
+../sim/tb_wr.v
+../sim/tb_rd.v
+../sim/tb_wr_aref.v
