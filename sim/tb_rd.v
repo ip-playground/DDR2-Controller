@@ -11,15 +11,14 @@
  *******************************************************************************
  */
 `timescale 1ps / 1ps
-// `include "../rtl/define.v" 
 module tb_rd();
 parameter   BA_BITS     =   3;
-parameter   ADDR_BITS   =   14; // Address Bits
-parameter   ROW_BITS    =   14; // Number of Address bits
+parameter   ADDR_BITS   =   13; // Address Bits
+parameter   ROW_BITS    =   13; // Number of Address bits
 parameter   COL_BITS    =   10; // Number of Column bits
-parameter   DM_BITS     =   1; // Number of Data Mask bits
-parameter   DQ_BITS     =   8; // Number of Data bits
-parameter   DQS_BITS    =   1;// Number of Dqs bits
+parameter   DM_BITS     =   2; // Number of Data Mask bits
+parameter   DQ_BITS     =   16; // Number of Data bits
+parameter   DQS_BITS    =   2;// Number of Dqs bits
 parameter           ADDR_WIDTH  = ROW_BITS + COL_BITS + BA_BITS;
 parameter           DATA_WIDTH  = DQ_BITS * 2;
 parameter           DATA_LEVEL  = 2;
@@ -75,7 +74,7 @@ wire                        wr_done;
 
 reg                         rd_trig;
 wire                [7:0]   rd_len;
-wire      [DATA_WIDTH-1:0]   rd_data;
+wire      [DATA_WIDTH-1:0]  rd_data;
 reg      [DATA_WIDTH-1:0]   rd_data_accept;
 wire                        rd_data_en;
 reg      [ADDR_WIDTH-1:0]   rd_addr;
@@ -83,7 +82,9 @@ wire                        rd_ready;
 wire                        rd_done;
 
 assign wr_len = 'd32;
-assign rd_len = 'd48;
+assign rd_len = 'd128;
+localparam wr_delay = 'd2000;
+localparam rd_delay = 'd150;
 
 reg                         op_start;    
 reg                         op_start_rd;    
@@ -116,7 +117,7 @@ end
 //     $dumpfile("tb_rd.fsdb");
 //     $dumpvars(0,tb_rd);
 // end
-localparam wr_delay = 'd50;
+
 always @(posedge clk) begin
     if(op_start == 1'b0)
         cnt <= 'd0;
@@ -149,7 +150,7 @@ always @(posedge clk) begin
 end
 
 
-localparam rd_delay = 'd110;
+
 always @(posedge clk) begin
     if(op_start == 1'b0)
         cnt_rd <= 'd0;

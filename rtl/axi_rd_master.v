@@ -9,10 +9,9 @@
  *
  *******************************************************************************
  */
-
 module axi_rd_master #(
-    parameter           ADDR_WIDTH  = 27,
-    parameter           DATA_WIDTH  = 16,
+    parameter           ADDR_WIDTH  = 26,
+    parameter           DATA_WIDTH  = 32,
     parameter           DATA_LEVEL  = 2,
     parameter           COL_BITS    = 10, // Number of Column bits
     parameter   [7:0]   WBURST_LEN  = 8'd8,

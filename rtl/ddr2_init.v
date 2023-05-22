@@ -12,7 +12,7 @@
  */
 module ddr2_init #(
     parameter   BA_BITS     =   3,
-    parameter   ADDR_BITS   =   14 // Address Bits
+    parameter   ADDR_BITS   =   13 // Address Bits
 )
 (
     input                               clk,
@@ -30,7 +30,7 @@ module ddr2_init #(
 parameter     tCK                   =   5;               
 parameter     INIT_DELAY_300US      =   300000;
 parameter     INIT_DELAY_500NS      =   500;
-parameter     tRPA                  =   15;             
+parameter     tRPA                  =   20;            //17.5
 parameter     tMRD                  =   2;              //单位tCK
 parameter     tRFC                  =   130;          //原本应该是127.5，为了方便整除改为130
 
@@ -52,6 +52,7 @@ localparam          PRE2        =   LM4 + tMRD;
 localparam          AREF1       =   PRE2 + tRPA/tCK;
 localparam          AREF2       =   AREF1 + tRFC/tCK;
 localparam          LM5         =   AREF2 + tRFC/tCK;
+
 localparam          LM6         =   LM5 + tMRD;
 localparam          LM7         =   LM6 + tMRD;
 localparam          PRE3        =   LM7 + tMRD;

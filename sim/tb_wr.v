@@ -13,12 +13,12 @@
 `timescale 1ps / 1ps
 module tb_wr();
 parameter   BA_BITS     =   3;
-parameter   ADDR_BITS   =   14; // Address Bits
-parameter   ROW_BITS    =   14; // Number of Address bits
+parameter   ADDR_BITS   =   13; // Address Bits
+parameter   ROW_BITS    =   13; // Number of Address bits
 parameter   COL_BITS    =   10; // Number of Column bits
-parameter   DM_BITS     =   1; // Number of Data Mask bits
-parameter   DQ_BITS     =   8; // Number of Data bits
-parameter   DQS_BITS    =   1;// Number of Dqs bits
+parameter   DM_BITS     =   2; // Number of Data Mask bits
+parameter   DQ_BITS     =   16; // Number of Data bits
+parameter   DQS_BITS    =   2;// Number of Dqs bits
 parameter           ADDR_WIDTH  = ROW_BITS + COL_BITS + BA_BITS;
 parameter           DATA_WIDTH  = DQ_BITS * 2;
 parameter           DATA_LEVEL  = 2;
@@ -99,7 +99,7 @@ end
 //     $dumpvars(0,tb_wr);
 // end
 
-localparam wr_delay = 'd90;
+localparam wr_delay = 'd80;
 always @(posedge clk) begin
     if(op_start == 1'b0)
         cnt <= 'd0;

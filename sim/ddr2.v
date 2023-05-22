@@ -140,9 +140,50 @@ module ddr2 (
     odt
 );
 
-    // `include "ddr2_parameters.v"
-    // `define sg25E
-    // `define x8
+
+    // sg25E x8
+    // parameter TCK_MIN          =    2500; // tCK    ps    Minimum Clock Cycle Time
+    // parameter TJIT_PER         =     100; // tJIT(per)  ps Period JItter
+    // parameter TJIT_DUTY        =     100; // tJIT(duty) ps Half Period Jitter
+    // parameter TJIT_CC          =     200; // tJIT(cc)   ps Cycle to Cycle jitter
+    // parameter TERR_2PER        =     150; // tERR(nper) ps Accumulated Error (2-cycle)
+    // parameter TERR_3PER        =     175; // tERR(nper) ps Accumulated Error (3-cycle)
+    // parameter TERR_4PER        =     200; // tERR(nper) ps Accumulated Error (4-cycle)
+    // parameter TERR_5PER        =     200; // tERR(nper) ps Accumulated Error (5-cycle)
+    // parameter TERR_N1PER       =     300; // tERR(nper) ps Accumulated Error (6-10-cycle)
+    // parameter TERR_N2PER       =     450; // tERR(nper) ps Accumulated Error (11-50-cycle)
+    // parameter TQHS             =     300; // tQHS   ps    Data hold skew factor
+    // parameter TAC              =     400; // tAC    ps    DQ output access time from CK/CK#
+    // parameter TDS              =      50; // tDS    ps    DQ and DM input setup time relative to DQS
+    // parameter TDH              =     125; // tDH    ps    DQ and DM input hold time relative to DQS
+    // parameter TDQSCK           =     350; // tDQSCK ps    DQS output access time from CK/CK#
+    // parameter TDQSQ            =     200; // tDQSQ  ps    DQS-DQ skew, DQS to last DQ valid, per group, per access
+    // parameter TIS              =     175; // tIS    ps    Input Setup Time
+    // parameter TIH              =     250; // tIH    ps    Input Hold Time
+    // parameter TRC              =   55000; // tRC    ps    Active to Active/Auto Refresh command time
+    // parameter TRCD             =   12500; // tRCD   ps    Active to Read/Write command time
+    // parameter TWTR             =    7500; // tWTR   ps    Write to Read command delay
+    // parameter TRP              =   12500; // tRP    ps    Precharge command period
+    // parameter TRPA             =   15000; // tRPA   ps    Precharge All period
+    // parameter TXARDS           =       8; // tXARDS tCK   Exit low power active power down to a read command
+    // parameter TXARD            =       2; // tXARD  tCK   Exit active power down to a read command
+    // parameter TXP              =       2; // tXP    tCK   Exit power down to a non-read command
+    // parameter TANPD            =       3; // tANPD  tCK   ODT to power-down entry latency
+    // parameter TAXPD            =      10; // tAXPD  tCK   ODT power-down exit latency
+    // parameter CL_TIME          =   12500; // CL     ps    Minimum CAS Latency
+
+    // parameter TFAW             =   35000; // tFAW  ps     Four Bank Activate window
+
+    // parameter ADDR_BITS        =      14; // Address Bits
+    // parameter ROW_BITS         =      14; // Number of Address bits
+    // parameter COL_BITS         =      10; // Number of Column bits
+    // parameter DM_BITS          =       1; // Number of Data Mask bits
+    // parameter DQ_BITS          =       8; // Number of Data bits
+    // parameter DQS_BITS         =       1; // Number of Dqs bits
+    // parameter TRRD             =    7500; // tRRD   Active bank a to Active bank b command time
+
+
+    // sg25 x16
     parameter TCK_MIN          =    2500; // tCK    ps    Minimum Clock Cycle Time
     parameter TJIT_PER         =     100; // tJIT(per)  ps Period JItter
     parameter TJIT_DUTY        =     100; // tJIT(duty) ps Half Period Jitter
@@ -162,18 +203,51 @@ module ddr2 (
     parameter TIS              =     175; // tIS    ps    Input Setup Time
     parameter TIH              =     250; // tIH    ps    Input Hold Time
     parameter TRC              =   55000; // tRC    ps    Active to Active/Auto Refresh command time
-    parameter TRCD             =   12500; // tRCD   ps    Active to Read/Write command time
+    parameter TRCD             =   15000; // tRCD   ps    Active to Read/Write command time
     parameter TWTR             =    7500; // tWTR   ps    Write to Read command delay
-    parameter TRP              =   12500; // tRP    ps    Precharge command period
-    parameter TRPA             =   15000; // tRPA   ps    Precharge All period
+    parameter TRP              =   15000; // tRP    ps    Precharge command period
+    parameter TRPA             =   17500; // tRPA   ps    Precharge All period
     parameter TXARDS           =       8; // tXARDS tCK   Exit low power active power down to a read command
     parameter TXARD            =       2; // tXARD  tCK   Exit active power down to a read command
     parameter TXP              =       2; // tXP    tCK   Exit power down to a non-read command
     parameter TANPD            =       3; // tANPD  tCK   ODT to power-down entry latency
     parameter TAXPD            =      10; // tAXPD  tCK   ODT power-down exit latency
-    parameter CL_TIME          =   12500; // CL     ps    Minimum CAS Latency
+    parameter CL_TIME          =   15000; // CL     ps    Minimum CAS Latency
 
-    parameter TFAW             =   35000; // tFAW  ps     Four Bank Activate window
+    parameter TFAW             =   45000; // tFAW  ps     Four Bank Activate window
+
+    parameter ADDR_BITS        =      13; // Address Bits
+    parameter ROW_BITS         =      13; // Number of Address bits
+    parameter COL_BITS         =      10; // Number of Column bits
+    parameter DM_BITS          =       2; // Number of Data Mask bits
+    parameter DQ_BITS          =      16; // Number of Data bits
+    parameter DQS_BITS         =       2; // Number of Dqs bits
+    parameter TRRD             =   10000; // tRRD   Active bank a to Active bank b command time    
+
+
+
+   // Size Parameters
+    parameter BA_BITS          =       3; // Set this parmaeter to control how many Bank Address bits
+    parameter MEM_BITS         =      10; // Number of write data bursts can be stored in memory.  The default is 2^10=1024.
+    parameter AP               =      10; // the address bit that controls auto-precharge and precharge-all
+    parameter BL_BITS          =       3; // the number of bits required to count to MAX_BL
+    parameter BO_BITS          =       2; // the number of Burst Order Bits
+
+    // Simulation parameters
+    parameter STOP_ON_ERROR    =       1; // If set to 1, the model will halt on command sequence/major errors
+    parameter DEBUG            =       1; // Turn on Debug messages
+    parameter BUS_DELAY        =       0; // delay in nanoseconds
+    parameter RANDOM_OUT_DELAY =       0; // If set to 1, the model will put a random amount of delay on DQ/DQS during reads
+    parameter RANDOM_SEED      = 711689044; //seed value for random generator.
+
+    parameter RDQSEN_PRE       =       2; // DQS driving time prior to first read strobe
+    parameter RDQSEN_PST       =       1; // DQS driving time after last read strobe
+    parameter RDQS_PRE         =       2; // DQS low time prior to first read strobe
+    parameter RDQS_PST         =       1; // DQS low time after last valid read strobe
+    parameter RDQEN_PRE        =       0; // DQ/DM driving time prior to first read data
+    parameter RDQEN_PST        =       0; // DQ/DM driving time after last read data
+    parameter WDQS_PRE         =       1; // DQS half clock periods prior to first write strobe
+    parameter WDQS_PST         =       1; // DQS half clock periods after last valid write strobe
 
     parameter AL_MIN           =       0; // AL     tCK   Minimum Additive Latency
     parameter AL_MAX           =       6; // AL     tCK   Maximum Additive Latency
@@ -225,37 +299,6 @@ module ddr2 (
     parameter TMOD             =   12000; // tMOD   ps    ODT enable in EMR to ODT pin transition
     // Power Down
     parameter TCKE             =       3; // tCKE   tCK   CKE minimum high or low pulse width
-
-    parameter ADDR_BITS        =      14; // Address Bits
-    parameter ROW_BITS         =      14; // Number of Address bits
-    parameter COL_BITS         =      10; // Number of Column bits
-    parameter DM_BITS          =       1; // Number of Data Mask bits
-    parameter DQ_BITS          =       8; // Number of Data bits
-    parameter DQS_BITS         =       1; // Number of Dqs bits
-    parameter TRRD             =    7500; // tRRD   Active bank a to Active bank b command time
-
-   // Size Parameters
-    parameter BA_BITS          =       3; // Set this parmaeter to control how many Bank Address bits
-    parameter MEM_BITS         =      10; // Number of write data bursts can be stored in memory.  The default is 2^10=1024.
-    parameter AP               =      10; // the address bit that controls auto-precharge and precharge-all
-    parameter BL_BITS          =       3; // the number of bits required to count to MAX_BL
-    parameter BO_BITS          =       2; // the number of Burst Order Bits
-
-    // Simulation parameters
-    parameter STOP_ON_ERROR    =       1; // If set to 1, the model will halt on command sequence/major errors
-    parameter DEBUG            =       1; // Turn on Debug messages
-    parameter BUS_DELAY        =       0; // delay in nanoseconds
-    parameter RANDOM_OUT_DELAY =       0; // If set to 1, the model will put a random amount of delay on DQ/DQS during reads
-    parameter RANDOM_SEED      = 711689044; //seed value for random generator.
-
-    parameter RDQSEN_PRE       =       2; // DQS driving time prior to first read strobe
-    parameter RDQSEN_PST       =       1; // DQS driving time after last read strobe
-    parameter RDQS_PRE         =       2; // DQS low time prior to first read strobe
-    parameter RDQS_PST         =       1; // DQS low time after last valid read strobe
-    parameter RDQEN_PRE        =       0; // DQ/DM driving time prior to first read data
-    parameter RDQEN_PST        =       0; // DQ/DM driving time after last read data
-    parameter WDQS_PRE         =       1; // DQS half clock periods prior to first write strobe
-    parameter WDQS_PST         =       1; // DQS half clock periods after last valid write strobe
 
 
     // text macros
@@ -1465,11 +1508,13 @@ module ddr2 (
         end
     endtask
 
+/*组合逻辑， 先 data_task  -->  cmd_task  -->   更新wr_pipeline*/
     always @(diff_ck) begin : main
         integer i;
 
         if (!in_self_refresh && (diff_ck !== 1'b0) && (diff_ck !== 1'b1))
             $display ("%m: at time %t ERROR: CK and CK_N are not allowed to go to an unknown state.", $time);
+        
         data_task;
         if (diff_ck) begin
             // check setup of command signals

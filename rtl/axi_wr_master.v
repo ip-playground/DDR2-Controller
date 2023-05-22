@@ -9,10 +9,9 @@
  *
  *******************************************************************************
  */
-
 module axi_wr_master #(
-    parameter           ADDR_WIDTH  = 27,
-    parameter           DATA_WIDTH  = 16,
+    parameter           ADDR_WIDTH  = 26,
+    parameter           DATA_WIDTH  = 32,
     parameter           DATA_LEVEL  = 2,
     parameter           COL_BITS    = 10, // Number of Column bits
     parameter   [7:0]   WBURST_LEN  = 8'd8,
@@ -54,7 +53,7 @@ reg     [7:0]   wr_data_cnt;
 parameter   IDLE    = 3'b000;
 parameter   AW      = 3'b001;
 parameter   AW1     = 3'b011;
-parameter   W       = 3'b010;
+parameter   W       = 3'b010;   
 parameter   B       = 3'b110;
 parameter   DONE    = 3'b100;
 

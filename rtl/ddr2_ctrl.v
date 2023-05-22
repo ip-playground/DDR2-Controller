@@ -12,12 +12,12 @@
  */
 module ddr2_ctrl #(
     parameter   BA_BITS     =   3,
-    parameter   ADDR_BITS   =   14, // Address Bits
-    parameter   ROW_BITS    =   14, // Number of Address bits
+    parameter   ADDR_BITS   =   13, // Address Bits
+    parameter   ROW_BITS    =   13, // Number of Address bits
     parameter   COL_BITS    =   10, // Number of Column bits
-    parameter   DM_BITS     =   1, // Number of Data Mask bits
-    parameter   DQ_BITS     =   8, // Number of Data bits
-    parameter   DQS_BITS    =   1 // Number of Dqs bits
+    parameter   DM_BITS     =   2, // Number of Data Mask bits
+    parameter   DQ_BITS     =   16, // Number of Data bits
+    parameter   DQS_BITS    =   2 // Number of Dqs bits
 )
 (
     // output  reg                                         clk,
@@ -58,18 +58,18 @@ module ddr2_ctrl #(
     output  wire                                        ddr2_cas_n,
     output  wire                         [BA_BITS-1:0]  ddr2_ba,
     output  wire                       [ADDR_BITS-1:0]  ddr2_addr,
-    inout                                        [7:0]  ddr2_dq,
-    inout                                               ddr2_dqm,
-    inout                                               ddr2_dqs,
-    inout                                               ddr2_dqs_n
+    inout                                [DQ_BITS-1:0]  ddr2_dq,
+    inout                                [DM_BITS-1:0]  ddr2_dqm,
+    inout                               [DQS_BITS-1:0]  ddr2_dqs,
+    inout                               [DQS_BITS-1:0]  ddr2_dqs_n
    // output                  ddr2_odt   
 );
 parameter   tCK     =   5;      
-parameter   tRPA    =   15;             // PRECHARGE ALL period             
+parameter   tRPA    =   20;             // PRECHARGE ALL period    17.5         
 parameter   tRFC    =   130;            // REFRESH to ACTIVATE or to REFRESH interval 原本应该是127.5，为了方便整除改为130,下同
 parameter   tREFI   =   7800;           // Average periodic refresh
-parameter   tRCD    =   15;             // ACTIVATE-to-READ or WRITE delay   12.5
-parameter   tRRD    =   7.5;            // ACTIVATE-to ACTIVATE delay different bank
+parameter   tRCD    =   15;             // ACTIVATE-to-READ or WRITE delay
+parameter   tRRD    =   10;            // ACTIVATE-to ACTIVATE delay different bank
 parameter   tRC     =   55;             // ACTIVATE-toACTIVATE delay,same bank
 // parameter   tFAW    =   35;          
 parameter   CL      =   3;              // CAS latency 速率400                  
@@ -248,10 +248,10 @@ reg          [DQ_BITS-1:0]      axi_wdata_l;
 
 reg          [DQ_BITS-1:0]      dq_pre;
 reg          [DQ_BITS-1:0]      dq;
-wire                            dqs;
-wire                            dqs_n;
-reg                             dqm_pre;
-reg                             dqm;
+wire         [DQS_BITS-1:0]     dqs;
+wire         [DQS_BITS-1:0]     dqs_n;
+reg          [DM_BITS-1:0]      dqm_pre;
+reg          [DM_BITS-1:0]      dqm;
 
 /*  利用pipe记录前几个周期写的状态，由于，dq数据出现在总线上跟对应的写命令有延迟（WL) */
 always @(posedge clk) begin
@@ -294,7 +294,7 @@ always @(posedge clk2) begin
   if(wr_pipe[WL-2]) begin
 //   if(wr_pipe[WL-2]) begin
     dq_pre <= clk ? axi_wdata_l : axi_wdata_h;
-    dqm_pre <= 0;
+    dqm_pre <= 2'b00;
   end else begin
     dq_pre <= 'dz;
     dqm_pre <= 'dz;
@@ -314,8 +314,8 @@ end
 
 // assign dqs = wr_pipe[WL] | wr_pipe[WL-1] ? clk : 'dz;
 // assign dqs_n = wr_pipe[WL] | wr_pipe[WL-1] ? !clk : 'dz;
-assign dqs = wr_pipe[WL-2] | wr_pipe[WL-1] ? clk : 'dz;
-assign dqs_n = wr_pipe[WL-2] | wr_pipe[WL-1] ? !clk : 'dz;
+assign dqs = wr_pipe[WL-2] | wr_pipe[WL-1] ? {2{clk}} : 'dz;
+assign dqs_n = wr_pipe[WL-2] | wr_pipe[WL-1] ? {2{!clk}} : 'dz;
 assign ddr2_dq = dq;
 assign ddr2_dqs = dqs;
 assign ddr2_dqs_n = dqs_n;
@@ -473,8 +473,8 @@ always @(posedge clk or negedge rst_n) begin
                     end else begin
                         state <= STATE_READ;
                         // rd_cnt <= 'd0;
-                        wr_cnt <= 'd1;
-                        cmd <= WRITE;
+                        rd_cnt <= 'd1;
+                        cmd <= READ;
                         addr <= {init_col_addr, 2'b0};
                     end
                 // end 
@@ -496,7 +496,7 @@ always @(posedge clk or negedge rst_n) begin
                 end
                 else if(pre_wr_to_aref) begin
                     wr_cnt_history <= wr_cnt+1;
-                    wr_cnt <= axi_arlen + 1;
+                    wr_cnt <= axi_awlen + 1;
                     state <= STATE_WRTOAREF;
                     to_aref_cnt <= 'd0;
                     wr_or_rd_to_aref <= 2'b01;
