@@ -3,7 +3,7 @@
  *  Filename    :   ddr2_init.v
  *
  *  Author      :   caosy      <1960552705@qq.com>
- *wr_pipe[WL] | wr_pipe[WL-1] 
+ *
  *  Version     :   1.0.0
  *
  *  Created     :   3/22/2023
@@ -491,8 +491,10 @@ always @(posedge clk or negedge rst_n) begin
             STATE_WRTOAREF:begin
                 if(to_aref_cnt < WL + WR)
                     to_aref_cnt <= to_aref_cnt + 'd1;
-                else 
+                else begin
                     state <= STATE_AREF;
+                    ref_cnt <= 'd0;
+                end
             end
 
             STATE_RETURNWR:begin
@@ -592,8 +594,10 @@ always @(posedge clk or negedge rst_n) begin
             STATE_RDTOAREF:begin
                 if(to_aref_cnt < Delay_RD_TO_PRE)
                     to_aref_cnt <= to_aref_cnt + 'd1;
-                else 
+                else begin
                     state <= STATE_AREF;
+                    ref_cnt <= 'd0;
+                end
             end
 
             STATE_RETURNRD:begin
