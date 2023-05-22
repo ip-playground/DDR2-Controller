@@ -56,10 +56,10 @@ module ddr2_ctrl #(
     output  wire                                        ddr2_cas_n,
     output  wire                         [BA_BITS-1:0]  ddr2_ba,
     output  wire                       [ADDR_BITS-1:0]  ddr2_addr,
-    inout                                        [7:0]  ddr2_dq,
-    inout                                               ddr2_dqm,
-    inout                                               ddr2_dqs,
-    inout                                               ddr2_dqs_n
+    inout                                [DQ_BITS-1:0]  ddr2_dq,
+    inout                                [DM_BITS-1:0]  ddr2_dqm,
+    inout                               [DQS_BITS-1:0]  ddr2_dqs,
+    inout                               [DQS_BITS-1:0]  ddr2_dqs_n
    // output                  ddr2_odt   
 );
 parameter   tCK     =   5;      
@@ -245,10 +245,10 @@ reg          [DQ_BITS-1:0]      axi_wdata_l;
 
 reg          [DQ_BITS-1:0]      dq_pre;
 reg          [DQ_BITS-1:0]      dq;
-wire                            dqs;
-wire                            dqs_n;
-reg                             dqm_pre;
-reg                             dqm;
+wire         [DQS_BITS-1:0]     dqs;
+wire         [DQS_BITS-1:0]     dqs_n;
+reg           [DM_BITS-1:0]     dqm_pre;
+reg           [DM_BITS-1:0]     dqm;
 
 /*  利用pipe记录前几个周期写的状态，由于，dq数据出现在总线上跟对应的写命令有延迟（WL) */
 always @(posedge clk) begin
@@ -280,7 +280,7 @@ end
 always @(posedge clk2) begin
   if(wr_pipe[WL-1]) begin
     dq_pre <= clk ? axi_wdata_l : axi_wdata_h;
-    dqm_pre <= 0;
+    dqm_pre <= 'd0;
   end else begin
     dq_pre <= 'dz;
     dqm_pre <= 'dz;
@@ -299,8 +299,8 @@ always @(posedge clk2) begin
   end
 end
 
-assign dqs = wr_pipe[WL] | wr_pipe[WL-1] ? clk : 'dz;
-assign dqs_n = wr_pipe[WL] | wr_pipe[WL-1] ? !clk : 'dz;
+assign dqs = wr_pipe[WL] | wr_pipe[WL-1] ? {DQS_BITS{clk}} : 'dz;
+assign dqs_n = wr_pipe[WL] | wr_pipe[WL-1] ? {DQS_BITS{!clk}} : 'dz;
 assign ddr2_dq = dq;
 assign ddr2_dqs = dqs;
 assign ddr2_dqs_n = dqs_n;
@@ -324,14 +324,14 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk2) begin
-    if(rd_pipe[4])begin
+    if(rd_pipe[RL])begin
         axi_rdata_l <= ddr2_dq;
         pre_axi_rdata <= {ddr2_dq,axi_rdata_l};
     end
 end
 
 always @(posedge clk) begin
-    if(rd_pipe[4])
+    if(rd_pipe[RL])
         axi_rdata <= pre_axi_rdata;
 end
 
