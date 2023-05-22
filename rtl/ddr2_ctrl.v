@@ -474,7 +474,7 @@ always @(posedge clk or negedge rst_n) begin
                 end
                 else if(pre_wr_to_aref) begin
                     wr_cnt_history <= wr_cnt+1;
-                    wr_cnt <= axi_arlen + 1;
+                    wr_cnt <= axi_awlen + 1;
                     state <= STATE_WRTOAREF;
                     to_aref_cnt <= 'd0;
                     wr_or_rd_to_aref <= 2'b01;
@@ -606,7 +606,7 @@ always @(posedge clk or negedge rst_n) begin
                     cmd <= READ;
                     state <= STATE_READ;
                     wr_or_rd_to_aref <= 2'b00;
-                    addr <= {init_col_addr + ((wr_cnt) >> 1), 2'b0};
+                    addr <= {init_col_addr + ((rd_cnt) >> 1), 2'b0};
                     // addr <= {init_col_addr + ((wr_cnt-'d1) >> 1), 2'b0};
                 end else 
                     cmd <= NOP;
