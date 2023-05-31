@@ -21,6 +21,7 @@ module ddr2_init #(
     output  reg      [BA_BITS-1:0]      init_ba,
     output  reg      [3:0]              init_cmd,
     output  reg      [ADDR_BITS-1:0]    init_addr,
+    output  wire                        ddr2_odt,
     output  wire                        init_end
 );
 
@@ -142,7 +143,7 @@ always @(posedge clk or negedge rst_n) begin
             //MR默认设置：WR=3,CL=3,突发：顺序，长度4 ;
             LM5:    begin init_cmd <= LM;   init_addr <= 13'b00_0100_0011_0010; init_ba <= 3'b000;   end
             LM6:    begin init_cmd <= LM;   init_addr <= 13'b00_0011_1000_0000; init_ba <= 3'b001;   end
-            // EMR1 暂时这么设置，AL = 1(POST CAS)  
+            // EMR1 暂时这么设置，AL = 1(POST CAS) ,odt 50欧姆 
             LM7:    begin init_cmd <= LM;   init_addr <= 13'b00_0000_0001_0000; init_ba <= 3'b001;   end
             // LM7:    begin init_cmd <= LM;   init_addr <= 13'b00_0000_0000_1000; init_ba <= 3'b001;   end
             PRE3:   begin init_cmd <= PRE;  init_addr <= 13'b00_0100_0000_0000;     end
@@ -152,5 +153,6 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 assign init_end = cnt_cmd > PRE3+1 ? 1'b1 : 1'b0;
+assign ddr2_odt = 1'b0;
 
 endmodule

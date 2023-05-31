@@ -39,7 +39,8 @@ module axi_rd_master #(
     input   wire                        axi_rvalid,
     output  reg                         axi_rready,
     input   wire                        axi_rlast,
-    input   wire     [DATA_WIDTH-1:0]   axi_rdata
+    input   wire     [DATA_WIDTH-1:0]   axi_rdata,
+    output  reg                         led
 
 
 
@@ -59,8 +60,14 @@ assign rd_ready = state_r == IDLE ? 1'b1 : 1'b0;
 assign rd_done = state_r == DONE ? 1'b1 : 1'b0;
 assign rd_data_en = axi_rvalid ;
 assign rd_data = axi_rdata;
+reg [7:0]   r_cnt;
 
-
+always @(posedge clk) begin
+    if(!rst_n)
+        led <= 1'b0;
+    else if(axi_rdata > 'd8)
+        led <= 1'b1;
+end
 //暂时只有一个主机
 // assign axi_arid = 4'b1111;
 
@@ -84,16 +91,18 @@ always @(posedge clk) begin
                     state_r <= AR;
                     axi_arvalid <= 1'b1;
                     axi_araddr <= rd_addr;
+                    axi_arlen <= rd_len;
                 end
             end
 
             AR:begin
                 if(axi_arready) begin
-                    axi_arlen <= rd_len;
+                    // axi_arlen <= rd_len;
                     state_r <= R;
                     axi_arvalid <= 1'b0;
                     axi_rready <= 1'b1;
                     rd_data_cnt <= rd_len - 1;
+                    r_cnt <= 'd0;
                 end
             end
 
@@ -108,8 +117,10 @@ always @(posedge clk) begin
                     if(rd_data_cnt == 8'd0) begin
                         axi_rready <= 1'b0;
                         state_r <= DONE;
-                    end else
+                    end else begin
                         rd_data_cnt <= rd_data_cnt - 'd1;
+                        r_cnt <= r_cnt + 'd1;
+                    end
                 end
             end
             DONE:
@@ -118,9 +129,51 @@ always @(posedge clk) begin
                 state_r <= IDLE;
         endcase
     end
-
 end
 
+
+reg     [DATA_WIDTH-1:0]   test_data0;
+reg     [DATA_WIDTH-1:0]   test_data1;
+always @(posedge clk) begin
+    if(!rst_n) begin
+        test_data0 <= 'd0;
+        test_data1 <= 'd0;
+    end
+    else if(axi_rvalid) begin
+        // test_data0 <= ((axi_araddr + r_cnt)>>1 + 'd1);
+        test_data0 <= (axi_araddr>>1) + r_cnt + 'd1;
+        test_data1 <= axi_rdata;
+    end else begin
+        test_data0 <= 'd0;
+        test_data1 <= 'd0;
+    end
+end
+
+
+
+// reg [15:0] rdata;
+// reg [7:0]   cnt;
+// reg [2:0]   state;
+
+// always @(posedge clk) begin
+//     if(!rst_n) begin
+//         rdata <= 'd0;
+//         cnt <= 'd0;
+//         state <= state_r;
+//     end else begin
+//         rdata <= axi_rdata[15:0];
+//         cnt <= rd_data_cnt;
+//         state <= state_r;
+//     end
+// end
+// ila_rd your_instance_name (
+// 	.clk(clk), // input wire clk
+
+
+// 	.probe0(state_r), // input wire [2:0]  probe0  
+// 	.probe1(rd_data_cnt), // input wire [7:0]  probe1 
+// 	.probe2(rdata) // input wire [15:0]  probe2
+// );
 
 
 endmodule

@@ -41,7 +41,7 @@ module axi_wr_master #(
     output  wire                        axi_wlast,
     output  wire     [DATA_WIDTH-1:0]   axi_wdata,
     input   wire                        axi_bvalid,
-    output  wire                           axi_bready
+    output  wire                        axi_bready
 
 
 );
@@ -87,8 +87,8 @@ always @(posedge clk) begin
                     state_w <= AW;
                     axi_awvalid <= 1'b1;
                     axi_awaddr <= wr_addr;
-                   
-                        wr_data_cnt <= 'd1;
+                    wr_data_cnt <= 'd1;
+                    axi_awlen <= wr_len;
                 end
             end
 
@@ -96,8 +96,7 @@ always @(posedge clk) begin
                 if(axi_awready) begin
                     state_w <= W;
                     axi_awvalid <= 1'b0;
-                    axi_wvalid <= 1'b1;
-                    axi_awlen <= wr_len;
+                    axi_wvalid <= 1'b1;                    
                     wr_data_cnt <= wr_len - 'd1;
                 end
             end

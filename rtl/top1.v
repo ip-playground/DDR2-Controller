@@ -11,24 +11,47 @@
  *******************************************************************************
  */
 `timescale 1ps / 1ps
-module tb_rd();
-parameter   BA_BITS     =   3;
-parameter   ADDR_BITS   =   13; // Address Bits
-parameter   ROW_BITS    =   13; // Number of Address bits
-parameter   COL_BITS    =   10; // Number of Column bits
-parameter   DM_BITS     =   2; // Number of Data Mask bits
-parameter   DQ_BITS     =   16; // Number of Data bits
-parameter   DQS_BITS    =   2;// Number of Dqs bits
-parameter           ADDR_WIDTH  = ROW_BITS + COL_BITS + BA_BITS;
-parameter           DATA_WIDTH  = DQ_BITS * 2;
-parameter           DATA_LEVEL  = 2;
-parameter   [7:0]   WBURST_LEN   = 8'd8;  
-parameter   [7:0]   RBURST_LEN   = 8'd8;  
+module top1 #(
+    parameter   BA_BITS     =   3,
+    parameter   ADDR_BITS   =   13, // Address Bits
+    parameter   ROW_BITS    =   13, // Number of Address bits
+    parameter   COL_BITS    =   10, // Number of Column bits
+    parameter   DM_BITS     =   2, // Number of Data Mask bits
+    parameter   DQ_BITS     =   16, // Number of Data bits
+    parameter   DQS_BITS    =   2,// Number of Dqs bits
+    parameter           ADDR_WIDTH  = ROW_BITS + COL_BITS + BA_BITS,
+    parameter           DATA_WIDTH  = DQ_BITS * 2,
+    parameter           DATA_LEVEL  = 2,
+    parameter   [7:0]   WBURST_LEN   = 8'd8,
+    parameter   [7:0]   RBURST_LEN   = 8'd8
+)
+(
+    input                         sys_clk,
+    input                         sys_rst_n,
+    output                          led,
+
+    output                         ddr2_clk_p,
+    output                         ddr2_clk_n,
+    output                         ddr2_cke,
+    output                         ddr2_cs_n,
+    output                         ddr2_cas_n,
+    output                         ddr2_ras_n,
+    output                         ddr2_we_n,
+    output        [BA_BITS-1:0]    ddr2_ba,
+    output      [ADDR_BITS-1:0]    ddr2_addr,
+    inout         [DM_BITS-1:0]    ddr2_dqm,
+    inout         [DQ_BITS-1:0]    ddr2_dq,
+    inout        [DQS_BITS-1:0]    ddr2_dqs_p,
+    inout        [DQS_BITS-1:0]    ddr2_dqs_n,
+    output                         ddr2_odt
+     
+);
+
 
 wire                       clk;
 wire                       clk2;
-reg                        clk100m;
-reg                        rst_n;
+wire                       clk100m;
+wire                       rst_n;
 
 wire                        axi_awvalid;
 wire                        axi_awready;
@@ -50,19 +73,7 @@ wire                        axi_rready;
 wire                        axi_rlast;
 wire    [DATA_WIDTH-1:0]    axi_rdata;
 
-wire                        ddr2_clk;
-wire                        ddr2_clk_n;
-wire                        ddr2_cke;
-wire                        ddr2_cs_n;
-wire                        ddr2_cas_n;
-wire                        ddr2_ras_n;
-wire                        ddr2_we_n;
-wire      [BA_BITS-1:0]    ddr2_ba;
-wire    [ADDR_BITS-1:0]    ddr2_addr;
-wire      [DM_BITS-1:0]    ddr2_dqm;
-wire      [DQ_BITS-1:0]    ddr2_dq;
-wire     [DQS_BITS-1:0]    ddr2_dqs;
-wire     [DQS_BITS-1:0]    ddr2_dqs_n;
+
 
 reg                         wr_trig;
 wire                [7:0]   wr_len;
@@ -81,38 +92,24 @@ reg      [ADDR_WIDTH-1:0]   rd_addr;
 wire                        rd_ready;   
 wire                        rd_done;
 
-assign wr_len = 'd64;
-assign rd_len = 'd64;
+assign clk100m = sys_clk;
+assign rst_n = sys_rst_n;
+
+assign wr_len = 'd32;
+assign rd_len = 'd32;
 localparam wr_delay = 'd100;
 localparam rd_delay = 'd150;
 
-
-reg                         op_start;    
-reg                         op_start_rd;    
 integer cnt;        
 integer cnt_rd;        
 
-// always #625 clk800m = ~clk800m;
-always #5000 clk100m = ~clk100m;
-
 wire init_end;
 
-initial begin
-    // clk800m <= 1'b1;
-    clk100m <= 1'b1;
-    rst_n <= 1'b0;
-    op_start <= 1'b0;
-    op_start_rd <= 1'b0;
-    repeat(4) @(posedge clk100m);
-    rst_n <= 1'b1;
-    #305000000;
-    op_start <= 1'b1;
-    #5500000;
-    // op_start <= 1'b0;
-    // op_start_rd <= 1'b1;
-    // #2500000;
-    // $finish(0);
-end
+wire    clk0;
+wire    clk0_n;
+wire    clk1;
+wire    clk1_n;
+wire    locked;
 
 // initial begin
 //     $dumpfile("tb_rd.fsdb");
@@ -121,7 +118,7 @@ end
 
 // always @(posedge clk) begin
 always @(posedge clk1) begin
-    if(op_start == 1'b0)
+    if(init_end == 1'b0)
         cnt <= 'd0;
     else if(cnt == wr_delay) begin
         cnt <= 'd0;
@@ -131,7 +128,7 @@ end
 
 // always @(posedge clk) begin
 always @(posedge clk1) begin
-    if(op_start == 1'b0)
+    if(init_end == 1'b0)
         wr_trig <= 1'b0;
     else if(cnt == wr_delay) 
         wr_trig <= 1'b1;
@@ -141,7 +138,7 @@ end
 
 // always @(posedge clk) begin
 always @(posedge clk1) begin
-    if(op_start == 1'b0) begin
+    if(init_end == 1'b0) begin
         wr_data <= 'd1;
         wr_addr <= 'd0;
     end else begin
@@ -157,7 +154,7 @@ end
 
 // always @(posedge clk) begin
 always @(posedge clk1) begin
-    if(op_start == 1'b0)
+    if(init_end == 1'b0)
         cnt_rd <= 'd0;
     else if(cnt_rd == rd_delay) begin
         cnt_rd <= 'd0;
@@ -167,7 +164,7 @@ end
 
 // always @(posedge clk) begin
 always @(posedge clk1) begin
-    if(op_start == 1'b0)
+    if(init_end == 1'b0)
         rd_trig <= 1'b0;
     else if(cnt_rd == rd_delay) 
         rd_trig <= 1'b1;
@@ -177,7 +174,7 @@ end
 
 // always @(posedge clk) begin
 always @(posedge clk1) begin
-    if(op_start == 1'b0) begin
+    if(init_end == 1'b0) begin
         rd_addr <= 'd0;
     end else begin
         if(rd_data_en)
@@ -187,22 +184,12 @@ always @(posedge clk1) begin
     end
 end
 
+// assign ddr2_clk_p = clk;
+// assign ddr2_clk_n = ~clk;
+// assign ddr2_dqs_p = ddr2_dqs;
+// assign ddr2_dqs_n = ~ddr2_dqs;
 
-wire locked;
-// clk_wiz_0 instance_name(
-//     // Clock out ports
-//     .clk_out1(clk),     // output clk_out1
-//     .clk_out2(clk2),     // output clk_out2
-//     // Status and control signals
-//     .reset(!rst_n), // input reset
-//     .locked(locked),       // output locked
-//    // Clock in ports
-//     .clk_in1(clk100m)
-// );      // input clk_in1
-wire    clk0;
-wire    clk0_n;
-wire    clk1;
-wire    clk1_n;
+
 clk_wiz_1 clk_wiz_1_inst(
     // Clock out ports
     .clk_out1(clk0),     // output clk_out1
@@ -215,13 +202,33 @@ clk_wiz_1 clk_wiz_1_inst(
    // Clock in ports
     .clk_in1(clk100m)
 );      // input clk_in1
+OBUFDS #(
+   .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
+   .SLEW("SLOW")           // Specify the output slew rate
+) OBUFDS_inst_clk (
+   .O(ddr2_clk_p),     // Diff_p output (connect directly to top-level port)
+   .OB(ddr2_clk_n),   // Diff_n output (connect directly to top-level port)
+   .I(clk0)      // Buffer input
+);
 
+wire [DQS_BITS-1:0] ddr2_dqs;
+OBUFDS #(
+   .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
+   .SLEW("SLOW")           // Specify the output slew rate
+) OBUFDS_inst_dqs (
+   .O(ddr2_dqs_p[0]),     // Diff_p output (connect directly to top-level port)
+   .OB(ddr2_dqs_n[0]),   // Diff_n output (connect directly to top-level port)
+   .I(ddr2_dqs[0])      // Buffer input
+);
+OBUFDS #(
+   .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
+   .SLEW("SLOW")           // Specify the output slew rate
+) OBUFDS_inst_dqs1 (
+   .O(ddr2_dqs_p[1]),     // Diff_p output (connect directly to top-level port)
+   .OB(ddr2_dqs_n[1]),   // Diff_n output (connect directly to top-level port)
+   .I(ddr2_dqs[1])      // Buffer input
+);
 
-// assign ddr2_clk = clk1;
-// assign ddr2_clk_n = ~clk1;
-assign ddr2_clk = clk0;
-assign ddr2_clk_n = ~clk0;
-assign ddr2_dqs_n = ~ddr2_dqs;
 
 axi_rd_master #(
     .ADDR_WIDTH     ( ADDR_WIDTH     ),
@@ -233,6 +240,7 @@ axi_rd_master #(
     .rst_n                       (rst_n),
     // .clk                        (clk),
     .clk                        (clk1),
+    .led                        (led),
     .init_end                   (init_end),
 
     .axi_arvalid                (axi_arvalid),
@@ -287,11 +295,11 @@ axi_wr_master #(
 );
 
 ddr2_ctrl ddr2_ctrl_inst (
+    // .clk                        (clk),
+    .clk0                        (clk0),
+    .clk0_n                     (clk0_n),
     .clk1                       (clk1),
     .clk1_n                     (clk1_n),
-    .clk0_n                     (clk0_n),
-    .clk0                     (clk0),
-    // .clk                        (clk),
     // .clk2                       (clk2),
     .rst_n                      (rst_n),
     .init_end                   (init_end),
@@ -313,7 +321,7 @@ ddr2_ctrl ddr2_ctrl_inst (
     .axi_rready                 (axi_rready),
     .axi_rlast                  (axi_rlast),
     .axi_rdata                  (axi_rdata),
-    // .ddr2_clk                   (ddr2_clk),
+    // .ddr2_clk                   (ddr2_clk_p),
     // .ddr2_clk_n                 (ddr2_clk_n),
     .ddr2_cke                   (ddr2_cke),
     .ddr2_cs_n                  (ddr2_cs_n),
@@ -324,27 +332,11 @@ ddr2_ctrl ddr2_ctrl_inst (
     .ddr2_addr                  (ddr2_addr),
     .ddr2_dq                    (ddr2_dq),
     .ddr2_dqm                   (ddr2_dqm),
-    .ddr2_dqs                   (ddr2_dqs)
-    // .ddr2_dqs_n                 (ddr2_dqs_n)
+    .ddr2_dqs                   (ddr2_dqs),
+    // .ddr2_dqs_n                 (ddr2_dqs_n),
+    .ddr2_odt                   (ddr2_odt)
 );  
 
-ddr2 ddr2_inst(
-    .ck                         (ddr2_clk),
-    .ck_n                       (ddr2_clk_n),
-    .cke                        (ddr2_cke),
-    .cs_n                       (ddr2_cs_n),
-    .cas_n                      (ddr2_cas_n),
-    .ras_n                      (ddr2_ras_n),
-    .we_n                       (ddr2_we_n),
-    .ba                         (ddr2_ba),
-    .addr                       (ddr2_addr),
-    .dq                         (ddr2_dq),
-    .dm_rdqs                    (ddr2_dqm),
-    .dqs                        (ddr2_dqs),
-    .dqs_n                      (ddr2_dqs_n),
-    .rdqs_n                     (),
-    .odt                        ()
-);
 
 
 
