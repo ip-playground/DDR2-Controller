@@ -23,10 +23,11 @@ module ddr2_ctrl #(
     // output  reg                                         clk,
     // output  reg                                         rst_n,
     // input   wire                                        clk800m,
-    input                                               clk0_n,
+    input                                               clk2,
     input                                               clk0,
     input                                               clk1,
     input                                               clk1_n,
+    // input               [DQS_BITS-1 : 0]                                ddr2_dqs_in,
     // input                                               clk,
     // input                                               clk2,
     input                                               rst_n,
@@ -51,13 +52,16 @@ module ddr2_ctrl #(
     output  reg                                       axi_arready,
     input   wire       [BA_BITS+ROW_BITS+COL_BITS-1:0]  axi_araddr, 
     input   wire                                [ 7:0]  axi_arlen,
-    output  wire                                        axi_rvalid,
+    // output  wire                                        axi_rvalid,
+    output  reg                                        axi_rvalid,
     input   wire                                        axi_rready,
     output  wire                                        axi_rlast,
-    output  reg                       [DQ_BITS*2-1:0]   axi_rdata,
+    // output  reg                       [DQ_BITS*2-1:0]   axi_rdata,
+    output  wire                       [DQ_BITS*2-1:0]   axi_rdata,
+    // output  reg [DQ_BITS*2-1:0] axi_rdata_next_r,
 
-    // output  wire                                        ddr2_clk,
-    // output  wire                                        ddr2_clk_n,
+    output  wire                                        ddr2_clk_p,
+    output  wire                                        ddr2_clk_n,
     output  wire                                        ddr2_cke,
     output  wire                                        ddr2_odt,
     output  wire                                        ddr2_cs_n,
@@ -68,8 +72,8 @@ module ddr2_ctrl #(
     output  wire                       [ADDR_BITS-1:0]  ddr2_addr,
     inout                                [DQ_BITS-1:0]  ddr2_dq,
     inout                                [DM_BITS-1:0]  ddr2_dqm,
-    inout                               [DQS_BITS-1:0]  ddr2_dqs
-    // inout                               [DQS_BITS-1:0]  ddr2_dqs_n
+    inout                               [DQS_BITS-1:0]  ddr2_dqs_p,
+    inout                               [DQS_BITS-1:0]  ddr2_dqs_n
    // output                  ddr2_odt   
 );
 parameter   tCK     =   5;      
@@ -86,78 +90,64 @@ parameter   tWR     =   15;             // WRITE recovery
 parameter   tWTR     =  10;             // Internal WRITE-to-READ delay  7.5
 parameter   tRTP    =   10;             // Internal READ-to-PRECHARGE delay 7.5
 
-// // -------------------------------------------------------------------------------------
-// //   clock and reset 
-// // ------------------------------------------------------------------------------------------------------------------------
-// // generate reset sync with clk800m
-// // -------------------------------------------------------------------------------------
-// reg       rstn_clk   ;
-// reg [1:0] rstn_clk_l ;
-// always @ (posedge clk800m or negedge rstn_async)
-//     if(~rstn_async)
-//         {rstn_clk, rstn_clk_l} <= 'd0;
-//     else
-//         {rstn_clk, rstn_clk_l} <= {rstn_clk_l, 1'b1};
-
-// // -------------------------------------------------------------------------------------
-// //   generate cloclks
-// // -------------------------------------------------------------------------------------
-// reg clk2;
-// always @ (posedge clk800m or negedge rstn_clk)
-//     if(~rstn_clk)
-//         {clk,clk2} <= 2'b00;
-//     else
-//         {clk,clk2} <= {clk,clk2} + 2'b01;
-
-// // -------------------------------------------------------------------------------------
-// // generate reset sync with clk
-// // -------------------------------------------------------------------------------------
-// reg       rstn_aclk   ;
-// reg [2:0] rstn_aclk_l ;
-// always @ (posedge clk or negedge rstn_async)
-//     if(~rstn_async)
-//         {rstn_aclk, rstn_aclk_l} <= 'd0;
-//     else
-//         {rstn_aclk, rstn_aclk_l} <= {rstn_aclk_l, 1'b1};
-
-// // -------------------------------------------------------------------------------------
-// //   generate user reset
-// // -------------------------------------------------------------------------------------
-// always @ (posedge clk or negedge rstn_aclk)
-//     if(~rstn_aclk)
-//         rst_n <= 1'b0;
-//     else
-//         rst_n <= 1'b1;
 
 // -------------------------------------------------------------------------------------
 //   state
 // -------------------------------------------------------------------------------------
-localparam  STATE_INIT      =   5'b0_0000;
-localparam  STATE_IDLE      =   5'b0_0001;
-localparam  STATE_AREF      =   5'b0_0011;
-localparam  STATE_AREFOVER  =   5'b1_0011;
-localparam  STATE_PRE       =   5'b0_0010;
-localparam  STATE_ACT       =   5'b0_1101;
+// localparam  STATE_INIT      =   5'b0_0000;
+// localparam  STATE_IDLE      =   5'b0_0001;
+// localparam  STATE_AREF      =   5'b0_0011;
+// localparam  STATE_AREFOVER  =   5'b1_0011;
+// localparam  STATE_PRE       =   5'b0_0010;
+// localparam  STATE_ACT       =   5'b0_1101;
 
-localparam  STATE_WRITE     =   5'b0_0101;
-localparam  STATE_WROVER    =   5'b0_1001;
-localparam  STATE_WRWAIT    =   5'b0_0111;
-localparam  STATE_WRTORD    =   5'b0_0110;
-localparam  STATE_WRTOPRE   =   5'b0_0100;
-localparam  STATE_RETURNWR  =   5'b1_1001;  
-localparam  STATE_WRTOAREF  =   5'b1_0110;
-localparam  STATE_WRTOAREF0 =   5'b1_0101;
-localparam  STATE_TOWR      =   5'b1_0010;
+// localparam  STATE_RDTORD    =   5'b1_1011;
+// localparam  STATE_RETURNRD  =   5'b1_1110;  
+// localparam  STATE_RDTOAREF  =   5'b1_1101;
+// localparam  STATE_RDTOAREF0 =   5'b1_1100;
+// localparam  STATE_READ      =   5'b0_1100;  //c
+// // localparam  STATE_RDOVER    =   5'b0_1101;  //d 
+// localparam  STATE_RDWAIT    =   5'b0_1111;
+// localparam  STATE_RDTOPRE   =   5'b0_1110;  //e
 
-localparam  STATE_RDTORD    =   5'b1_1011;
-localparam  STATE_RETURNRD  =   5'b1_1110;  
-localparam  STATE_RDTOAREF  =   5'b1_1101;
-localparam  STATE_RDTOAREF0 =   5'b1_1100;
-localparam  STATE_READ      =   5'b0_1100;  //c
-// localparam  STATE_RDOVER    =   5'b0_1101;  //d 
-localparam  STATE_RDWAIT    =   5'b0_1111;
-localparam  STATE_RDTOPRE   =   5'b0_1110;  //e
+// localparam  STATE_WRITE     =   5'b0_0101;
+// localparam  STATE_WROVER    =   5'b0_1001;
+// localparam  STATE_WRWAIT    =   5'b0_0111;
+// localparam  STATE_WRTORD    =   5'b0_0110;
+// localparam  STATE_WRTOPRE   =   5'b0_0100;
+// localparam  STATE_RETURNWR  =   5'b1_1001;  
+// localparam  STATE_WRTOAREF  =   5'b1_0110;
+// localparam  STATE_WRTOAREF0 =   5'b1_0101;
+// localparam  STATE_TOWR      =   5'b1_0010;
 
+localparam  STATE_INIT      =   5'b0_0000; //0
+localparam  STATE_IDLE      =   5'b0_0001;  //1
+localparam  STATE_ACT       =   5'b0_0101;  //5
+localparam  STATE_AREF      =   5'b0_0011;  //3
+localparam  STATE_AREFOVER  =   5'b0_1010; //a
+localparam  STATE_PRE       =   5'b0_1001;  //9
+
+localparam  STATE_READ      =   5'b0_1101;  //d
+localparam  STATE_RDWAIT    =   5'b0_1111;  //f
+localparam  STATE_RDTORD    =   5'b0_1110;  //e
+localparam  STATE_RDTOPRE   =   5'b0_1011;  //b
+localparam  STATE_RDTOAREF0 =   5'b0_0110;  //6
+localparam  STATE_RDTOAREF  =   5'b0_0111;  //7
+localparam  STATE_RETURNRD  =   5'b0_1100;  //c
+
+
+localparam  STATE_WRITE     =   5'b1_0101;  //15
+localparam  STATE_WROVER    =   5'b1_0001;
+localparam  STATE_WRWAIT    =   5'b1_1111;
+localparam  STATE_TOWR      =   5'b1_1001;
+// localparam  STATE_WRWAIT    =   5'b1_1001;
+// localparam  STATE_TOWR      =   5'b1_1111;
+localparam  STATE_WRTORD    =   5'b1_1101;
+localparam  STATE_WRTOPRE   =   5'b1_1000;
+
+localparam  STATE_WRTOAREF0 =   5'b1_0111;
+localparam  STATE_WRTOAREF  =   5'b1_0011;
+localparam  STATE_RETURNWR  =   5'b1_1010;  
 
 // -------------------------------------------------------------------------------------
 //   cmd
@@ -212,12 +202,12 @@ reg                [11:0]       refi_cnt;
 //   aref
 // -------------------------------------------------------------------------------------
 reg                             aref_req;
-wire                            wr_to_aref_en;
-wire                            rd_to_aref_en;
+// wire                            wr_to_aref_en;
+// wire                            rd_to_aref_en;
 reg                  [7:0]      wr_cnt_history;
 reg                  [1:0]      wr_or_rd_to_aref;
-wire                            pre_wr_to_aref;
-wire                            pre_rd_to_aref;
+// wire                            pre_wr_to_aref;
+// wire                            pre_rd_to_aref;
 
 reg                             aref_req_over;
 
@@ -254,22 +244,25 @@ end
 //   write
 // -------------------------------------------------------------------------------------
 
-reg                 [WL:0]      wr_pipe;
+// reg                 [WL:0]      wr_pipe;
+reg                 [WL+1:0]      wr_pipe;
 
 
 reg        [DQ_BITS*2-1:0]      axi_wdata_1;
 reg        [DQ_BITS*2-1:0]      axi_wdata_2;
 reg        [DQ_BITS*2-1:0]      axi_wdata_3;
-reg          [DQ_BITS-1:0]      axi_wdata_h;
-reg          [DQ_BITS-1:0]      axi_wdata_l;
+reg        [DQ_BITS*2-1:0]      axi_wdata_4;
+reg        [DQ_BITS*2-1:0]      axi_wdata_5;
+// reg          [DQ_BITS-1:0]      axi_wdata_h;
+// reg          [DQ_BITS-1:0]      axi_wdata_l;
 
 
-reg          [DQ_BITS-1:0]      dq_pre;
+// reg          [DQ_BITS-1:0]      dq_pre;
 // reg          [DQ_BITS-1:0]      dq;
 wire          [DQ_BITS-1:0]      dq;
-wire         [DQS_BITS-1:0]     dqs;
-wire         [DQS_BITS-1:0]     dqs_n;
-reg          [DM_BITS-1:0]      dqm_pre;
+// wire         [DQS_BITS-1:0]     dqs;
+// wire         [DQS_BITS-1:0]     dqs_n;
+// reg          [DM_BITS-1:0]      dqm_pre;
 reg          [DM_BITS-1:0]      dqm;
 reg          [7:0]              wr_len;
 always @(posedge clk1) begin
@@ -284,110 +277,134 @@ always @(posedge clk1) begin
     if(!rst_n)
         wr_pipe <= 'd0;
     else if(state == STATE_WRITE && wr_cnt > 'd0)
-        wr_pipe <= {wr_pipe[WL-'d1:0],1'b1};
+        // wr_pipe <= {wr_pipe[WL-'d1:0],1'b1};
+        wr_pipe <= {wr_pipe[WL:0],1'b1};
     else
-        wr_pipe <= {wr_pipe[WL-'d1:0], 1'b0};
+        // wr_pipe <= {wr_pipe[WL-'d1:0], 1'b0};
+        wr_pipe <= {wr_pipe[WL:0], 1'b0};
 end
 
-// always @(posedge clk) begin
+// always @(posedge clk2) begin
+//     if(!rst_n) begin
+//         axi_wdata_1 <= 'd0;
+//         axi_wdata_2 <= 'd0;
+//         axi_wdata_3 <= 'd0;
+//         axi_wdata_4 <= 'd0;
+//     end
+//     // else if(state == STATE_WRITE) begin
+//     else  begin
+//         axi_wdata_1 <= axi_wdata;
+//         axi_wdata_2 <= axi_wdata_1;
+//         axi_wdata_3 <= axi_wdata_2;
+//         axi_wdata_4 <= axi_wdata_3;
+//     end 
+// end
+
 always @(posedge clk1) begin
+// always @(posedge clk2) begin
     if(!rst_n) begin
         axi_wdata_1 <= 'd0;
-        // axi_wdata_2 <= 'd0;
-        // axi_wdata_3 <= 'd0;
     end
-    else if(state == STATE_WRITE) begin
+    // else if(state == STATE_WRITE) begin
+    else  begin
         axi_wdata_1 <= axi_wdata;
-        // axi_wdata_2 <= axi_wdata_1;
-        // axi_wdata_3 <= axi_wdata_2;
-    end else 
-        axi_wdata_1 <= 'd0;
+    end 
 end
 
-always @(posedge clk1) begin
+always @(posedge clk2) begin
     if(!rst_n) begin
         axi_wdata_2 <= 'd0;
         axi_wdata_3 <= 'd0;
+        axi_wdata_4 <= 'd0;
+        axi_wdata_5 <= 'd0;
     end
     else  begin
         axi_wdata_2 <= axi_wdata_1;
         axi_wdata_3 <= axi_wdata_2;
+        axi_wdata_4 <= axi_wdata_3;
+        axi_wdata_5 <= axi_wdata_4;
     end
 end
 
-// always @(posedge clk) begin
-always @(posedge clk1) begin
-    if(!rst_n) 
-        {axi_wdata_h, axi_wdata_l} <= 'd0;
-    // end else begin
-        // axi_wdata_2 <= axi_wdata_1;
-    else if(wr_pipe[WL-2])
-        {axi_wdata_h, axi_wdata_l} <= axi_wdata_3;
-    else 
-        {axi_wdata_h, axi_wdata_l} <= 'dz;
-        // {axi_wdata_h, axi_wdata_l} <= axi_wdata_2;
+reg [WL:0]wr_pipe_0;
+reg [WL:0]wr_pipe_1;
+
+always @(posedge clk2) begin
+    if(!rst_n) begin
+        wr_pipe_0 <= 'd0;
+        wr_pipe_1 <= 'd0;
+    end
+    else  begin
+        wr_pipe_0 <= wr_pipe;
+        wr_pipe_1 <= wr_pipe_0;
+    end
 end
 
+// reg [DQ_BITS-1:0] dq_0;
+// reg [DQ_BITS-1:0] dq_1;
 // always @(posedge clk2) begin
-//   if(wr_pipe[WL-1]) begin
-//     dq <= clk ? axi_wdata_l : axi_wdata_h;
-//     dqm <= 0;
-//   end else begin
-//     dq <= 'dz;
-//     dqm <= 'dz;
-//   end
+//     if(!rst_n)
+//         {dq_0,dq_1} <= 'dz;
+//     // else if(wr_pipe[WL-1])
+//     // else if(wr_pipe[WL-2])
+//     // else if(wr_pipe_0[WL-3])
+//     else if(wr_pipe_0[WL-2])
+//         // {dq_1, dq_0} <= axi_wdata_3;
+//         {dq_1, dq_0} <= axi_wdata_4;
 // end
-// always @(posedge clk1_n or posedge) begin
-//   if(wr_pipe[WL-2]) begin
-// //   if(wr_pipe[WL-2]) begin
-//     dq_pre <= axi_wdata3[DQ_BITS-1:0];
-//     dqm_pre <= 2'b00;
-//   end else begin
-//     dq_pre <= 'dz;
-//     dqm_pre <= 'dz;
-//   end
-// end
+// assign dq = clk2 ?   dq_0:dq_1;
+assign dq = clk2 ?   axi_wdata_5[15:0] : axi_wdata_5[31:16];
 
-// always @(posedge clk2) begin
-//   if(!rst_n) begin
-//     dq <= 'dz;
-//     dqm <= 'dz;
-//   end
-//   else begin
-//     dq <= dq_pre;
-//     dqm <= dqm_pre;
-//   end
-// end
-
-reg [DQ_BITS-1:0] dq_next;
-always @(posedge clk1 ) begin
-    if(wr_pipe[WL-1])
-        dq_next <= axi_wdata_h;
-    else
-        dq_next <= 'dz;
-end
-assign dq = clk1 ?   dq_next : axi_wdata_l;
-
-always @(posedge clk1_n) begin
+always @(posedge clk2) begin
   if(!rst_n) begin
     dqm <= 'dz;
   end
-  else if(wr_pipe[WL-1])begin
+//   else if(wr_pipe[WL-1])begin
+//   else if(wr_pipe[WL-2])begin
+//   else if(wr_pipe_0[WL-3])begin
+  else if(wr_pipe_0[WL-2])begin
     dqm <= 2'b00;
+    // dqm <= 1'b0;
   end else
     dqm <= 'dz;
 end
 
-// assign ddr2_dqs = wr_pipe[WL] | wr_pipe[WL-1] ? {2{clk1}} : 'dz;
-assign ddr2_dqs = wr_pipe[WL] | wr_pipe[WL-1] ? {2{clk0}} : 'dz;
-assign ddr2_dq = wr_pipe[WL] | wr_pipe[WL-1] ? dq : 'dz;
+
+reg dq_valid ;
+always @(posedge clk2) begin
+    if(!rst_n)
+        dq_valid <= 1'b0;
+     // else if(wr_pipe[WL-2] | wr_pipe[WL-1])
+    // else if(wr_pipe[WL-2] | wr_pipe[WL-3])
+    // else if(wr_pipe_0[WL-3] | wr_pipe_0[WL-4])
+    else if(wr_pipe_0[WL-2] | wr_pipe_0[WL-3])
+
+        dq_valid <= 1'b1;
+    else    
+        dq_valid <= 1'b0;
+end
+
+wire [DQS_BITS-1:0] ddr2_dqs;
 assign ddr2_dqm = dqm;
+assign ddr2_dqs = dq_valid ? {clk1,clk1} : 'dz;
+assign ddr2_dq = dq_valid ? dq : 'dz;
+// assign ddr2_dqs = wr_pipe_0[WL-3] | wr_pipe_0[WL-4] ? {clk1,clk1} : 'dz;
+// assign ddr2_dq = wr_pipe_0[WL-3] | wr_pipe_0[WL-4] ? dq : 'dz;
+// assign ddr2_dqs = wr_pipe[WL-2] | wr_pipe[WL-1] ? {2{clk0}} : 'dz;
+// assign ddr2_dq = wr_pipe[WL-2] | wr_pipe[WL-1] ? dq : 'dz;
+
+
+// wire [DQS_BITS-1:0] ddr2_dqs;
+// assign ddr2_dqs = wr_pipe[WL-2] | wr_pipe[WL-1] ? {2{clk1}} : 'dz;
+// assign ddr2_dq = wr_pipe[WL] | wr_pipe[WL-1] ? dq : 'dz;
+
 
 // -------------------------------------------------------------------------------------
 //   read
 // -------------------------------------------------------------------------------------
-reg             [RL+'d1:0]      rd_pipe;
-reg          [DQ_BITS-1:0]      axi_rdata_l;
+// reg             [RL+'d1:0]      rd_pipe;
+reg             [RL+'d2:0]      rd_pipe;
+reg          [DQ_BITS-1:0]      axi_rdata_low;
 reg          [DQ_BITS-1:0]      axi_rdata_h;
 reg        [DQ_BITS*2-1:0]      pre_axi_rdata;
 reg          [7:0]              rd_len;
@@ -402,27 +419,51 @@ always @(posedge clk1) begin
     if(!rst_n)
         rd_pipe <= 'd0;
     else if(state == STATE_READ && rd_cnt > 'd0)
-        rd_pipe <= {rd_pipe[RL:0],1'b1};
+        // rd_pipe <= {rd_pipe[RL:0],1'b1};
+        rd_pipe <= {rd_pipe[RL+1:0],1'b1};
     else
-        rd_pipe <= {rd_pipe[RL:0], 1'b0};
+        // rd_pipe <= {rd_pipe[RL:0], 1'b0};
+        rd_pipe <= {rd_pipe[RL+1:0], 1'b0};
 end
 
-always @(posedge clk1) begin
-    if(rd_pipe[RL-1])begin
-        axi_rdata_l <= ddr2_dq;
-        // pre_axi_rdata <= {ddr2_dq,axi_rdata_l};
-    end
-end
-
+// always @(posedge clk1) begin
+//     if(rd_pipe[RL-1])begin
+//         // axi_rdata_low <= ddr2_dq;
+//         axi_rdata_h <= ddr2_dq;
+//         // pre_axi_rdata <= {ddr2_dq,axi_rdata_low};
+//     end
+// end
+// reg [DQ_BITS-1:0] ddr2_dq_0;
+reg [DQ_BITS-1:0] ddr2_dq_1;
 always @(posedge clk1_n) begin
-    if(rd_pipe[RL])
-        axi_rdata_h <= ddr2_dq;
+    if(!rst_n) begin
+        axi_rdata_low <= 'd0;
+        // ddr2_dq_1 <= 'd0;
+    end
+    // else if(rd_pipe[RL] ) begin
+    else if(rd_pipe[RL+1]) begin
+        axi_rdata_low <= ddr2_dq;
+        // ddr2_dq_1 <= axi_rdata_low;
+    end
+    // else 
+    //     axi_rdata_low <= 'd0;
 end
 
+
+reg [DQ_BITS*2-1:0] axi_rdata_pre;
 always @(posedge clk1) begin
-    if(rd_pipe[RL])
-        axi_rdata <= {axi_rdata_h, axi_rdata_l};
+    // if( rd_pipe[RL]) 
+    if(rd_pipe[RL+1])
+        // axi_rdata <= {ddr2_dq, axi_rdata_low};
+        axi_rdata_pre <= {ddr2_dq, axi_rdata_low};
+    else
+        axi_rdata_pre <= 'd0;
 end
+
+
+
+
+
 
 // -------------------------------------------------------------------------------------
 //   state diagram
@@ -474,13 +515,13 @@ always @(posedge clk1) begin
     if(!rst_n) begin
         axi_awready <= 1'b0;
     end else if(~aref_req)begin
-        if(state == STATE_IDLE)
-            axi_awready <= 1'b1;
-        else if(same_ba_col_w)
-            axi_awready <= &state[2:0];
-        else 
-            axi_awready <= 1'b0;
-        // axi_awready <= state == STATE_IDLE || (same_ba_col_w & (&state[2:0]));
+        // if(state == STATE_IDLE)
+        //     axi_awready <= 1'b1;
+        // else if(same_ba_col_w)
+        //     axi_awready <= &state[2:0];
+        // else 
+        //     axi_awready <= 1'b0;
+        axi_awready <= state == STATE_IDLE || (same_ba_col_w & (&state[3:0]));
     end else begin
         axi_awready <= 1'b0;   
     end
@@ -494,13 +535,13 @@ always @(posedge clk1) begin
     if(!rst_n) begin
         axi_arready <= 1'b0;
     end else if(~aref_req & (~axi_awvalid))begin
-        if(state == STATE_IDLE)
-            axi_arready <= 1'b1;
-        else if(same_ba_col_r)
-            axi_arready <= &state[2:0];
-        else 
-            axi_arready <= 1'b0;
-        // axi_arready <= state == STATE_IDLE || (same_ba_col_r & (&state[2:0]));
+        // if(state == STATE_IDLE)
+        //     axi_arready <= 1'b1;
+        // else if(same_ba_col_r)
+        //     axi_arready <= &state[2:0];
+        // else 
+        //     axi_arready <= 1'b0;
+        axi_arready <= state == STATE_IDLE || (same_ba_col_r & (&state[3:0]));
     end else begin
         axi_arready <= 1'b0;   
     end
@@ -520,7 +561,54 @@ end
 
 assign axi_bvalid = wr_cnt > wr_len + WL ? 1'b1 : 1'b0;
 
-assign axi_rvalid = rd_pipe[RL+1];   
+// assign axi_rvalid = rd_pipe[RL+1];   
+// assign axi_rvalid = rd_pipe[RL];  
+
+// always @(posedge clk1) begin
+
+//     if(!rst_n)
+//         axi_rvalid <= 1'b0;
+//     // else if(rd_pipe[RL+1])
+//     else if(rd_pipe[RL])
+//         axi_rvalid <= 1'b1;
+//     else 
+//         axi_rvalid <= 1'b0;
+// end
+reg axi_rvalid_0; 
+always @(posedge clk1) begin
+    if(!rst_n)
+        axi_rvalid_0 <= 1'b0;
+    // else if(rd_pipe[RL+1])
+    else if(rd_pipe[RL+1])
+        axi_rvalid_0 <= 1'b1;
+    else 
+        axi_rvalid_0 <= 1'b0;
+end
+
+always @(posedge clk1) begin
+    if(!rst_n)
+        axi_rvalid <= 1'b0;
+    else
+        axi_rvalid <= axi_rvalid_0;
+end
+
+// reg axi_rvalid_0; 
+// always @(posedge clk1) begin
+//     if(!rst_n)
+//         axi_rvalid_0 <= 1'b0;
+//     // else if(rd_pipe[RL+1])
+//     else if(rd_pipe[RL])
+//         axi_rvalid_0 <= 1'b1;
+//     else 
+//         axi_rvalid_0 <= 1'b0;
+// end
+
+// always @(posedge clk1) begin
+//     if(!rst_n)
+//         axi_rvalid <= 1'b0;
+//     else
+//         axi_rvalid <= axi_rvalid_0;
+// end
 
 // wire test;
 // assign test = wr_cnt >= wr_len + WL + WTR;
@@ -642,7 +730,6 @@ always @(posedge clk1 or negedge rst_n) begin
                         addr <= {init_col_addr, 2'b0};
                     end
                 // end 
-                // cmd <= NOP;
             end
 
             STATE_WRITE: begin 
@@ -652,8 +739,8 @@ always @(posedge clk1 or negedge rst_n) begin
                 // ------------------------------------------------------------------------------------------
                 // 当写数据突发长度较长，在写数据时，数据刷新请求到来，需要先保存当前状态，再去执行刷新，然后再回来
                 // ------------------------------------------------------------------------------------------
-               
-                wr_cnt <= wr_cnt + 'd1;
+                if(axi_wvalid)
+                    wr_cnt <= wr_cnt + 'd1;
                 if(axi_wlast)begin
                     state <= STATE_WROVER;  
                     cmd <= NOP;
@@ -735,7 +822,6 @@ always @(posedge clk1 or negedge rst_n) begin
             STATE_WRWAIT: begin
                 if(wr_cnt < wr_len + WL + WR + 1)
                     wr_cnt <= wr_cnt + 1'b1;
-                // cmd <= NOP;
                 //写请求到来，且同一bank,row,不需要写恢复
                 if(same_to_wr) begin
                         // state <= STATE_WRITE;
@@ -792,33 +878,13 @@ always @(posedge clk1 or negedge rst_n) begin
                 // ------------------------------------------------------------------------------------------
                 // 当读数据突发长度较长，在读数据时，数据刷新请求到来，需要先保存当前状态，再去执行刷新。。。
                 // ------------------------------------------------------------------------------------------
-                // if(rd_cnt == rd_len) 
-                //     state <= STATE_RDWAIT;
-                // else if(pre_rd_to_aref) begin
-                //     state <= STATE_RDTOAREF;
-                //     to_aref_cnt <= 'd0;
-                //     wr_or_rd_to_aref <= 2'b10;
-                // end 
-                // else if(axi_rready) begin 
-                //     if(rd_cnt[0] == 1'b0) begin
-                //         cmd <= READ;
-                //         addr <= {init_col_addr + (rd_cnt >> 1), 2'b0};
-                //     end else
-                //         cmd <= NOP;
-                // end
-                
-                // if(rd_cnt == rd_len) begin
-                //     state <= STATE_RDWAIT;
-                //     cmd <= NOP;
-                // end
-                // else if(rd_cnt[0] == 1'b0) begin
                 rd_cnt <= rd_cnt + 1;
-                if(rd_cnt[0] == 1'b0) begin
-                    if(rd_cnt == rd_len) begin
-                        state <= STATE_RDWAIT;
-                        cmd <= NOP;
-                    end
-                    else if(aref_req & (rd_cnt < rd_len - Threshold)) begin
+                if(rd_cnt == rd_len) begin
+                    state <= STATE_RDWAIT;
+                    cmd <= NOP;
+                end
+                else if(rd_cnt[0] == 1'b0) begin
+                    if(aref_req & (rd_cnt < rd_len - Threshold)) begin
                         // state <= STATE_RDTOAREF;
                         cmd <= NOP;
                         state <= STATE_RDTOAREF0;
@@ -851,22 +917,11 @@ always @(posedge clk1 or negedge rst_n) begin
             end
 
             STATE_RETURNRD:begin
-                // act_cnt <= act_cnt + 'd1;
-                // if(act_cnt == 'd1) begin
-                    cmd <= READ;
-                    state <= STATE_READ;
-                    wr_or_rd_to_aref <= 2'b00;
-                    addr <= {init_col_addr + ((rd_cnt) >> 1), 2'b0};
-                    // addr <= {init_col_addr + ((wr_cnt-'d1) >> 1), 2'b0};
-                // end else 
-                //     cmd <= NOP;
+                cmd <= READ;
+                state <= STATE_READ;
+                wr_or_rd_to_aref <= 2'b00;
+                addr <= {init_col_addr + ((rd_cnt) >> 1), 2'b0};
             end
-
-            // STATE_RDOVER:begin
-            //     rd_cnt <= rd_cnt + 1;
-            //     if(rd_cnt == rd_len + RL + 'd2)
-            //         state <= STATE_RDWAIT;
-            // end
 
             STATE_RDWAIT: begin
                 if(rd_cnt < rd_len + Delay_RD_TO_PRE)
@@ -917,6 +972,59 @@ assign ddr2_ba = state == STATE_INIT ? init_ba : ba;
 assign ddr2_addr = state == STATE_INIT ? init_addr : addr;
 assign  ddr2_cke = init_cke;
 
+wire clk1_buf;
+
+ODDR #(
+   .DDR_CLK_EDGE("OPPOSITE_EDGE"), // "OPPOSITE_EDGE" or "SAME_EDGE" 
+   .INIT(1'b0),    // Initial value of Q: 1'b0 or 1'b1
+   .SRTYPE("SYNC") // Set/Reset type: "SYNC" or "ASYNC" 
+) ODDR_inst (
+   .Q(clk1_buf),   // 1-bit DDR output
+   .C(clk1),   // 1-bit clock input
+   .CE(1'b1), // 1-bit clock enable input
+   .D1(1'b1), // 1-bit data input (positive edge)
+   .D2(1'b0), // 1-bit data input (negative edge)
+   .R(R),   // 1-bit reset
+   .S(1'b0)    // 1-bit set
+);
+
+OBUFDS #(
+   .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
+   .SLEW("SLOW")           // Specify the output slew rate
+) OBUFDS_inst_clk (
+   .O(ddr2_clk_p),     // Diff_p output (connect directly to top-level port)
+   .OB(ddr2_clk_n),   // Diff_n output (connect directly to top-level port)
+   .I(clk1_buf)      // Buffer input
+//    .I(clk1)      // Buffer input
+);
+
+
+
+OBUFDS #(
+   .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
+   .SLEW("SLOW")           // Specify the output slew rate
+) OBUFDS_inst_dqs (
+   .O(ddr2_dqs_p[0]),     // Diff_p output (connect directly to top-level port)
+   .OB(ddr2_dqs_n[0]),   // Diff_n output (connect directly to top-level port)
+   .I(ddr2_dqs[0])      // Buffer input
+);
+OBUFDS #(
+   .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
+   .SLEW("SLOW")           // Specify the output slew rate
+) OBUFDS_inst_dqs1 (
+   .O(ddr2_dqs_p[1]),     // Diff_p output (connect directly to top-level port)
+   .OB(ddr2_dqs_n[1]),   // Diff_n output (connect directly to top-level port)
+   .I(ddr2_dqs[1])      // Buffer input
+);
+
+// reg ddr2_dqs_test;
+// always @(posedge clk1) begin
+//     if(!rst_n)
+//         ddr2_dqs_test;
+//     else
+//         ddr2_dqs_test <= ddr2_dqs_p;
+// end
+
 
 ddr2_init ddr2_init_inst(
     // .clk                        (clk),
@@ -929,13 +1037,79 @@ ddr2_init ddr2_init_inst(
     .ddr2_odt                   (ddr2_odt),
     .init_end                   (init_end)
 );
-// wire clk_probe;
+// wire clk_probe;  
 // assign clk_probe = ~clk;
+
+// wire [3:0] dqs;
+// assign dqs = {ddr2_dqs_p, ddr2_dqs_n};
+
+reg [9:0]axi_addr;
+always @(posedge clk1) begin
+    if(!rst_n)
+        axi_addr <= 'd0;
+    else
+        axi_addr <= axi_araddr[9:0];
+end
+
+
+// reg [DQ_BITS*2-1:0] axi_rdata_next;
+// wire [DQ_BITS*2-1:0] axi_rdata_next_w;
+// reg [DQ_BITS*2-1:0] axi_rdata_next_r;
+// assign axi_rdata_next_w = axi_rdata_next;
+// always @(posedge clk1) begin
+//     if(!rst_n) begin 
+//         axi_rdata_next <= 'd0;
+//         axi_rdata_next_r <= 'd0;
+//     end
+//     else begin
+//         axi_rdata_next <= axi_rdata_pre;
+//         axi_rdata_next_r <= axi_rdata_next;
+//     end
+// end
+
+reg [DQ_BITS*2-1:0] axi_rdata_reg;
+assign axi_rdata = axi_rdata_reg;
+always @(posedge clk1) begin
+    if(!rst_n) 
+        axi_rdata_reg <= 'd0;
+    else
+        axi_rdata_reg <= axi_rdata_pre;
+end
+
+
+reg [DQ_BITS*2-1:0]  axi_rdata_1;
+always @(posedge clk1) begin
+    if(!rst_n)
+        axi_rdata_1 <= 'd0;
+    else 
+        axi_rdata_1 <= axi_rdata;
+end
+
+// reg [DQ_BITS*2-1:0]  axi_wdata_1ila;
+// always @(posedge clk1) begin
+//     if(!rst_n)
+//         axi_wdata_1ila <= 'd0;
+//     else 
+//         axi_wdata_1ila <= axi_wdata;
+// end
+
+
 // ila_0 your_instance_name (
-// 	.clk(clk1), // input wire clk    
-// 	.probe0(state), // input wire [4:0]  probe0  
-// 	.probe1(cmd), // input wire [3:0]  probe1 
-// 	.probe2(ddr2_dq) // input wire [15:0]  probe2
+// 	// .clk(clk2), // input wire clk
+// 	.clk(clk1), // input wire clk
+
+
+// 	// .probe0(state), // input wire [4:0]  probe0  
+// 	.probe0(axi_rdata_1), // input wire [15:0]  probe0  
+// 	// .probe0(16'd0), // input wire [15:0]  probe0  
+// 	// .probe1(axi_wdata_1ila[15:0]),// input wire [15:0]  probe1
+// 	// .probe1(dq_0),// input wire [15:0]  probe1
+// 	.probe1(16'd0),// input wire [15:0]  probe1
+// 	// .probe1(ddr2_dq_1),// input wire [15:0]  probe1
+//     .probe2(cmd)
 // );
 
 endmodule
+
+
+

@@ -24,7 +24,7 @@ module axi_wr_master #(
     input   wire                        wr_trig,
     input   wire                [7:0]   wr_len,
     input   wire     [DATA_WIDTH-1:0]   wr_data,
-    output  wire                        wr_data_en,
+    output  wire                       wr_data_en,
     input   wire     [ADDR_WIDTH-1:0]   wr_addr,
     output  wire                        wr_ready,
     output  wire                        wr_done,
@@ -51,15 +51,15 @@ reg     [2:0]   state_w;
 reg     [7:0]   wr_data_cnt;
 //state_w
 parameter   IDLE    = 3'b000;
-parameter   AW      = 3'b001;
-parameter   AW1     = 3'b011;
+parameter   START   = 3'b001;
+parameter   AW      = 3'b011;
 parameter   W       = 3'b010;   
 parameter   B       = 3'b110;
 parameter   DONE    = 3'b100;
 
 assign wr_ready = state_w == IDLE ? 1'b1 : 1'b0;
 assign wr_done = state_w == DONE ? 1'b1 : 1'b0;
-assign wr_data_en = axi_wvalid && axi_wready;
+// assign wr_data_en = axi_wvalid && axi_wready;
 
 //暂时只有一个主机
 // assign axi_awid = 4'b1111;
@@ -84,14 +84,16 @@ always @(posedge clk) begin
         case(state_w) 
             IDLE:begin
                 if(wr_trig) begin
-                    state_w <= AW;
+                    // state_w <= AW;
+                    state_w <= START;
                     axi_awvalid <= 1'b1;
                     axi_awaddr <= wr_addr;
                     wr_data_cnt <= 'd1;
                     axi_awlen <= wr_len;
                 end
             end
-
+            START:
+                state_w <= AW;
             AW:begin
                 if(axi_awready) begin
                     state_w <= W;
@@ -124,6 +126,26 @@ always @(posedge clk) begin
 
 end
 
+// reg [7:0]pre_cnt;
+// reg wr_data_en_reg;
+// always @(posedge clk) begin
+//     if(!rst_n) begin
+//         pre_cnt <= 'd0;
+//         wr_data_en_reg <= 1'b0;
+//     end 
+//     else  begin
+//         if(state_w == START && axi_awready == 1'b1) begin
+//             pre_cnt <= wr_len - 'd1;
+//             wr_data_en_reg <= 1'b1;
+//         end 
+//         else if(pre_cnt > 'd0) 
+//             pre_cnt <= pre_cnt - 'd1;
+//         else 
+//             wr_data_en_reg <= 1'b0;
+//     end
+// end
+// assign wr_data_en = wr_data_en_reg;
+assign wr_data_en = axi_wready & axi_wvalid;
 
 
 endmodule
