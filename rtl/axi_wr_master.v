@@ -126,26 +126,26 @@ always @(posedge clk) begin
 
 end
 
-// reg [7:0]pre_cnt;
-// reg wr_data_en_reg;
-// always @(posedge clk) begin
-//     if(!rst_n) begin
-//         pre_cnt <= 'd0;
-//         wr_data_en_reg <= 1'b0;
-//     end 
-//     else  begin
-//         if(state_w == START && axi_awready == 1'b1) begin
-//             pre_cnt <= wr_len - 'd1;
-//             wr_data_en_reg <= 1'b1;
-//         end 
-//         else if(pre_cnt > 'd0) 
-//             pre_cnt <= pre_cnt - 'd1;
-//         else 
-//             wr_data_en_reg <= 1'b0;
-//     end
-// end
-// assign wr_data_en = wr_data_en_reg;
-assign wr_data_en = axi_wready & axi_wvalid;
+reg [7:0]pre_cnt;
+reg wr_data_en_reg;
+always @(posedge clk) begin
+    if(!rst_n) begin
+        pre_cnt <= 'd0;
+        wr_data_en_reg <= 1'b0;
+    end 
+    else  begin
+        if(state_w == START && axi_awready == 1'b1) begin
+            pre_cnt <= wr_len - 'd1;
+            wr_data_en_reg <= 1'b1;
+        end 
+        else if(pre_cnt > 'd0) 
+            pre_cnt <= pre_cnt - 'd1;
+        else 
+            wr_data_en_reg <= 1'b0;
+    end
+end
+assign wr_data_en = wr_data_en_reg;
+// assign wr_data_en = axi_wready & axi_wvalid;
 
 
 endmodule

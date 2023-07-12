@@ -30,8 +30,8 @@ module  uart_tx
     output  reg              tx_out
 );
 
-// parameter   BAUD_CNT_MAX = 5207;
-parameter   BAUD_CNT_MAX = 56;
+parameter   BAUD_CNT_MAX = 5207;
+// parameter   BAUD_CNT_MAX = 56;
 
 reg             work_en     ;
 reg     [13:0]  baud_cnt    ;

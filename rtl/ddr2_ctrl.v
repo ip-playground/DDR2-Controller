@@ -438,12 +438,12 @@ reg [DQ_BITS-1:0] ddr2_dq_1;
 always @(posedge clk1_n) begin
     if(!rst_n) begin
         axi_rdata_low <= 'd0;
-        // ddr2_dq_1 <= 'd0;
+        ddr2_dq_1 <= 'd0;
     end
     // else if(rd_pipe[RL] ) begin
     else if(rd_pipe[RL+1]) begin
         axi_rdata_low <= ddr2_dq;
-        // ddr2_dq_1 <= axi_rdata_low;
+        ddr2_dq_1 <= axi_rdata_low;
     end
     // else 
     //     axi_rdata_low <= 'd0;
@@ -1100,12 +1100,12 @@ end
 
 
 // 	// .probe0(state), // input wire [4:0]  probe0  
-// 	.probe0(axi_rdata_1), // input wire [15:0]  probe0  
-// 	// .probe0(16'd0), // input wire [15:0]  probe0  
+// 	// .probe0(axi_rdata_reg), // input wire [15:0]  probe0  
+// 	.probe0(16'd0), // input wire [15:0]  probe0  
 // 	// .probe1(axi_wdata_1ila[15:0]),// input wire [15:0]  probe1
 // 	// .probe1(dq_0),// input wire [15:0]  probe1
-// 	.probe1(16'd0),// input wire [15:0]  probe1
-// 	// .probe1(ddr2_dq_1),// input wire [15:0]  probe1
+// 	// .probe1(16'd0),// input wire [15:0]  probe1
+// 	.probe1(ddr2_dq_1),// input wire [15:0]  probe1
 //     .probe2(cmd)
 // );
 

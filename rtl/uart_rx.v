@@ -30,8 +30,8 @@ module  uart_rx
     output  reg             valid 
 );
 
-// parameter   BAUD_CNT_MAX = 5207;
-parameter   BAUD_CNT_MAX = 54;
+parameter   BAUD_CNT_MAX = 5207;
+// parameter   BAUD_CNT_MAX = 54;
 
 reg             rx_reg1         ;
 reg             rx_reg2         ;

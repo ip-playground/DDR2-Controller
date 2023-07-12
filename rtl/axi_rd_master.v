@@ -191,37 +191,37 @@ end
 //     end 
 // end
 
-always @(posedge clk) begin
-    if(!rst_n) begin
-        diff_data0 <= 'd0;
-    end
-    else if(axi_rvalid_1) begin
-        // diff_data0 <= ((axi_araddr + r_cnt)>>1 + 'd1);
-        diff_data0 <= (axi_araddr>>1) + r_cnt + 'd1;
-    end 
-    // else begin
-    //     diff_data0 <= 'd0;
-    // end
-end
+// always @(posedge clk) begin
+//     if(!rst_n) begin
+//         diff_data0 <= 'd0;
+//     end
+//     else if(axi_rvalid_1) begin
+//         // diff_data0 <= ((axi_araddr + r_cnt)>>1 + 'd1);
+//         diff_data0 <= (axi_araddr>>1) + r_cnt + 'd1;
+//     end 
+//     // else begin
+//     //     diff_data0 <= 'd0;
+//     // end
+// end
 
 
-always @(posedge clk) begin
-    if(!rst_n) begin
-        diff_data1 <= 'd0;
-        diff_data2 <= 'd0;
-    end
-    else  begin
-        diff_data1 <= diff_data0;
-        diff_data2 <= diff_data1;
-    end 
-end
+// always @(posedge clk) begin
+//     if(!rst_n) begin
+//         diff_data1 <= 'd0;
+//         // diff_data2 <= 'd0;
+//     end
+//     else  begin
+//         diff_data1 <= diff_data0;
+//         // diff_data2 <= diff_data1;
+//     end 
+// end
 
 
 always @(posedge clk) begin
     if(!rst_n)
         rd_error_reg <= 1'b0;
     // else if(state_r == R )
-    else if(diff_data1 != axi_rdata0 )
+    // else if(axi_rvalid_1 == 1'b1 && diff_data1 != axi_rdata0)
     // // else if(state_r == R && diff_data0 != diff_data1)
     //     // rd_error_reg <= diff_data0 != diff_data1;
         // rd_error_reg <= 1'b1;
@@ -235,18 +235,18 @@ end
 // 	.probe0(axi_rdata_1) // input wire [15:0] probe0
 // );
 
-ila_rd your_instance_name (
-	.clk(clk), // input wire clk
+// ila_rd your_instance_name (
+// 	.clk(clk), // input wire clk
 
 
-	// .probe0(diff_data0[15:0]), // input wire [15:0]  probe0  
-	.probe0(diff_data1[15:0]), // input wire [15:0]  probe0  
-	// .probe0(16'd0), // input wire [15:0]  probe0  
-	.probe1(axi_rdata0[15:0]), // input wire [15:0]  probe1 
-	// .probe1(axi_rdata0[15:0]), // input wire [15:0]  probe1 
-	// .probe1(16'd0), // input wire [15:0]  probe1 
-	.probe2(1'b0) // input wire [0:0]  probe2
-);
+// 	// .probe0(diff_data0[15:0]), // input wire [15:0]  probe0  
+// 	// .probe0(diff_data1[15:0]), // input wire [15:0]  probe0  
+// 	.probe0(16'd0), // input wire [15:0]  probe0  
+// 	.probe1(axi_rdata0[15:0]), // input wire [15:0]  probe1 
+// 	// .probe1(axi_rdata0[15:0]), // input wire [15:0]  probe1 
+// 	// .probe1(16'd0), // input wire [15:0]  probe1 
+// 	.probe2(1'b0) // input wire [0:0]  probe2
+// );
 
 // reg [15:0] rdata;
 // reg [7:0]   cnt;

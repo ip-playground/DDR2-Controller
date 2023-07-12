@@ -69,7 +69,6 @@ module top_uart #(
 
 
 wire                       clk;
-wire                       clk2;
 wire                       clk100m;
 wire                       rst_n;
 
@@ -86,7 +85,7 @@ assign rst_n = sys_rst_n;
 
 
 wire    clk0;
-wire    clk0_n;
+wire    clk2;
 wire    clk1;
 wire    clk1_n;
 wire    locked;
@@ -164,7 +163,8 @@ wire uart_clk;
 OBUF OBUF_uart(.I(clk100m),.O(uart_clk));
 
 uart_rx uart_receiver (
-    .clk(uart_clk),
+    // .clk(uart_clk),
+    .clk(clk100m),
     .reset_n(rst_n),
     .rx(uart_rx),
     .data(uart_data),
@@ -172,7 +172,8 @@ uart_rx uart_receiver (
 );
 
 uart_tx uart_sender (
-    .clk(uart_clk),
+    // .clk(uart_clk),
+    .clk(clk100m),
     .reset_n(rst_n),
     .tx_en(data_valid_in),
     .tx_data(data_in),
@@ -180,7 +181,8 @@ uart_tx uart_sender (
 );
 
 command_parser cmd_parser (
-    .clk(uart_clk),
+    // .clk(uart_clk),
+    .clk(clk100m),
     .reset_n(rst_n),
     .data_in(uart_data),
     .valid_in(uart_valid),
@@ -320,20 +322,16 @@ always @(posedge clk1) begin
         wr_addr <= wr_addr_0;
 end
 
-ila_1 ila_top (
-    .clk(clk1),
-    .probe0(wr_data[15:0]),
-    .probe1(wr_data_en)
-);
+
 
 
 reg rd_req;
 wire [7:0] rfifo_dout;
 wire rfifo_empty;  
 reg [4:0] rdata_cnt;
-reg [13:0] rd_baud_cnt;
-parameter BAUD_CNT_MAX  =   550;
-// parameter BAUD_CNT_MAX  =   52070;
+reg [16:0] rd_baud_cnt;
+// parameter BAUD_CNT_MAX  =   550;
+parameter BAUD_CNT_MAX  =   52070;
 reg rfifo_rd_work_en;
 wire rfifo_rd_en;
 wire [5:0] rfifo_wr_data_count;
@@ -404,7 +402,7 @@ end
 // assign rd_addr = address_out;
 
 
-always@(posedge clk100m )
+always@(posedge clk100m)
     if(~rst_n)
         rfifo_rd_work_en <= 1'b0;
     else  if(~rfifo_empty)
@@ -446,7 +444,29 @@ always @(posedge clk100m) begin
 end
 
 
+// ila_1 ila_top (
+//     .clk(clk1),
+//     .probe0(wr_data[15:0]),
+//     .probe1(wr_data_en)
+// );
 
+// reg [31:0] rd_data_1;
+// reg rd_data_en_1;
+// always @(posedge clk1) begin
+//     if(!rst_n) begin
+//         rd_data_1 <= 'd0;
+//         rd_data_en_1 <= 'd0;
+//     end else begin
+//         rd_data_1 <= rd_data;
+//         rd_data_en_1 <= rd_data_en;
+//     end
+// end
+
+// ila_1 ila_top (
+//     .clk(clk1),
+//     .probe0(rd_data_1[15:0]),
+//     .probe1(rd_data_en_1)
+// );
 
 
 
@@ -454,8 +474,7 @@ clk_wiz_1 clk_wiz_1_inst(
     // Clock out ports
     .clk_out1(clk1),     // output clk_out1  主时钟
     .clk_out2(clk1_n),     // output clk_out2
-    .clk_out3(clk0_n),     // output clk_out3   写数据用
-    .clk_out4(clk0),     // output clk_out4
+    .clk_out3(clk2),     // output clk_out3   写数据用
     // .clk_out5(clk2),     // output clk_out5
     // Status and control signals
     .reset(!rst_n), // input reset
@@ -586,7 +605,7 @@ ddr2_ctrl #(
 )  ddr2_ctrl_inst (
     // .clk                        (clk),
     .clk0                        (clk0),
-    .clk0_n                     (clk0_n),
+    .clk2                     (clk2),
     .clk1                       (clk1),
     .clk1_n                     (clk1_n),
     // .clk2                       (clk2),
