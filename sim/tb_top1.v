@@ -1,25 +1,3 @@
-`timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2023/07/05 17:14:03
-// Design Name: 
-// Module Name: tb_top1
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
-
 `timescale 1ps / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
@@ -93,6 +71,12 @@ end
 
 always #5000 clk100m = ~clk100m;
 
+reg rd_error_1;
+// always @(posedge clk1) begin
+//     if(rd_error_led) 
+//         $display("xxxxxxxxxxxxxx");
+// end
+
 
 top1 #(
     .BA_BITS     ( BA_BITS     ),    
@@ -102,8 +86,8 @@ top1 #(
     .DM_BITS     ( DM_BITS     ),
     .DQ_BITS     ( DQ_BITS     ),
     .DQS_BITS    ( DQS_BITS    ),
-    .wr_delay    ( 200),
-    .rd_delay    ( 2000)
+    .wr_delay    ( 100),
+    .rd_delay    ( 200)
 )  top1_inst (
 .sys_clk                (clk100m),
 .sys_rst_n              (rst_n),

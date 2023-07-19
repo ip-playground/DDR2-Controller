@@ -137,14 +137,15 @@ always @(posedge clk or negedge rst_n) begin
             LM1:    begin init_cmd <= LM;   init_addr <= 13'b0_0000_0000_0000; init_ba <= 3'b010;   end
             LM2:    begin init_cmd <= LM;   init_addr <= 13'b0_0000_0000_0000; init_ba <= 3'b011;   end
             LM3:    begin init_cmd <= LM;   init_addr <= 13'b0_0000_0000_0000; init_ba <= 3'b001;   end
-            LM4:    begin init_cmd <= LM;   init_addr <= 13'b0_1011_0110_0010; init_ba <= 3'b000;   end
+            // LM4:    begin init_cmd <= LM;   init_addr <= 13'b0_1011_0110_0010; init_ba <= 3'b000;   end
+            LM4:    begin init_cmd <= LM;   init_addr <= 13'b0_0001_0000_0000; init_ba <= 3'b000;   end
             PRE2:   begin init_cmd <= PRE;  init_addr <= 13'b0_0100_0000_0000;     end
             AREF1:   begin init_cmd <= AREF;  end
             AREF2:   begin init_cmd <= AREF;  end
             //MR默认设置：WR=3,CL=3,突发：顺序，长度4 ;
             LM5:    begin init_cmd <= LM;   init_addr <= 13'b0_0100_0011_0010; init_ba <= 3'b000;   end
             LM6:    begin init_cmd <= LM;   init_addr <= 13'b0_0011_1001_0000; init_ba <= 3'b001;   end
-            // EMR1 暂时这么设置，AL = 1(POST CAS) ,odt 50欧姆 
+            // EMR1 暂时这么设置，AL = 2(POST CAS) ,odt 50欧姆 
             LM7:    begin init_cmd <= LM;   init_addr <= 13'b0_0000_0001_0000; init_ba <= 3'b001;   end
             // LM7:    begin init_cmd <= LM;   init_addr <= 13'b00_0000_0000_1000; init_ba <= 3'b001;   end
             PRE3:   begin init_cmd <= PRE;  init_addr <= 13'b0_0100_0000_0000;     end

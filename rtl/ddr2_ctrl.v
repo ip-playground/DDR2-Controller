@@ -10,6 +10,7 @@
  *
  *******************************************************************************
  */
+`define FPGA
 module ddr2_ctrl #(
     parameter   BA_BITS     =   3,
     parameter   ADDR_BITS   =   13, // Address Bits
@@ -94,31 +95,7 @@ parameter   tRTP    =   10;             // Internal READ-to-PRECHARGE delay 7.5
 // -------------------------------------------------------------------------------------
 //   state
 // -------------------------------------------------------------------------------------
-// localparam  STATE_INIT      =   5'b0_0000;
-// localparam  STATE_IDLE      =   5'b0_0001;
-// localparam  STATE_AREF      =   5'b0_0011;
-// localparam  STATE_AREFOVER  =   5'b1_0011;
-// localparam  STATE_PRE       =   5'b0_0010;
-// localparam  STATE_ACT       =   5'b0_1101;
 
-// localparam  STATE_RDTORD    =   5'b1_1011;
-// localparam  STATE_RETURNRD  =   5'b1_1110;  
-// localparam  STATE_RDTOAREF  =   5'b1_1101;
-// localparam  STATE_RDTOAREF0 =   5'b1_1100;
-// localparam  STATE_READ      =   5'b0_1100;  //c
-// // localparam  STATE_RDOVER    =   5'b0_1101;  //d 
-// localparam  STATE_RDWAIT    =   5'b0_1111;
-// localparam  STATE_RDTOPRE   =   5'b0_1110;  //e
-
-// localparam  STATE_WRITE     =   5'b0_0101;
-// localparam  STATE_WROVER    =   5'b0_1001;
-// localparam  STATE_WRWAIT    =   5'b0_0111;
-// localparam  STATE_WRTORD    =   5'b0_0110;
-// localparam  STATE_WRTOPRE   =   5'b0_0100;
-// localparam  STATE_RETURNWR  =   5'b1_1001;  
-// localparam  STATE_WRTOAREF  =   5'b1_0110;
-// localparam  STATE_WRTOAREF0 =   5'b1_0101;
-// localparam  STATE_TOWR      =   5'b1_0010;
 
 localparam  STATE_INIT      =   5'b0_0000; //0
 localparam  STATE_IDLE      =   5'b0_0001;  //1
@@ -140,8 +117,6 @@ localparam  STATE_WRITE     =   5'b1_0101;  //15
 localparam  STATE_WROVER    =   5'b1_0001;
 localparam  STATE_WRWAIT    =   5'b1_1111;
 localparam  STATE_TOWR      =   5'b1_1001;
-// localparam  STATE_WRWAIT    =   5'b1_1001;
-// localparam  STATE_TOWR      =   5'b1_1111;
 localparam  STATE_WRTORD    =   5'b1_1101;
 localparam  STATE_WRTOPRE   =   5'b1_1000;
 
@@ -193,7 +168,6 @@ wire                            init_cke;
 reg                 [7:0]       wr_cnt;
 reg                 [7:0]       rd_cnt;
 reg                 [7:0]       ref_cnt;
-reg                 [3:0]       act_cnt;
 reg                 [3:0]       rp_cnt;
 reg                 [3:0]       to_aref_cnt;
 reg                [11:0]       refi_cnt;
@@ -202,21 +176,11 @@ reg                [11:0]       refi_cnt;
 //   aref
 // -------------------------------------------------------------------------------------
 reg                             aref_req;
-// wire                            wr_to_aref_en;
-// wire                            rd_to_aref_en;
 reg                  [7:0]      wr_cnt_history;
 reg                  [1:0]      wr_or_rd_to_aref;
-// wire                            pre_wr_to_aref;
-// wire                            pre_rd_to_aref;
 
 reg                             aref_req_over;
 
-/*  允许打断读/写操作   */
-// assign wr_to_aref_en = state == STATE_WRITE && wr_cnt < wr_len - Threshold && wr_cnt[0] == 1'b0;
-// assign rd_to_aref_en = state == STATE_READ && rd_cnt < rd_len - Threshold && rd_cnt[0] == 1'b0;
-
-// assign pre_wr_to_aref = aref_req == 1'b1 &&  wr_to_aref_en;
-// assign pre_rd_to_aref = aref_req == 1'b1 && rd_to_aref_en;
 
 
 always @(posedge clk1 or negedge rst_n) begin
@@ -253,26 +217,20 @@ reg        [DQ_BITS*2-1:0]      axi_wdata_2;
 reg        [DQ_BITS*2-1:0]      axi_wdata_3;
 reg        [DQ_BITS*2-1:0]      axi_wdata_4;
 reg        [DQ_BITS*2-1:0]      axi_wdata_5;
-// reg          [DQ_BITS-1:0]      axi_wdata_h;
-// reg          [DQ_BITS-1:0]      axi_wdata_l;
 
 
-// reg          [DQ_BITS-1:0]      dq_pre;
-// reg          [DQ_BITS-1:0]      dq;
 wire          [DQ_BITS-1:0]      dq;
-// wire         [DQS_BITS-1:0]     dqs;
-// wire         [DQS_BITS-1:0]     dqs_n;
-// reg          [DM_BITS-1:0]      dqm_pre;
 reg          [DM_BITS-1:0]      dqm;
 reg          [7:0]              wr_len;
+
 always @(posedge clk1) begin
     if(!rst_n)
         wr_len <= 'd0;
     else 
         wr_len <= axi_awlen;
 end
+
 /*  利用pipe记录前几个周期写的状态，由于，dq数据出现在总线上跟对应的写命令有延迟（WL) */
-// always @(posedge clk) begin
 always @(posedge clk1) begin
     if(!rst_n)
         wr_pipe <= 'd0;
@@ -284,21 +242,6 @@ always @(posedge clk1) begin
         wr_pipe <= {wr_pipe[WL:0], 1'b0};
 end
 
-// always @(posedge clk2) begin
-//     if(!rst_n) begin
-//         axi_wdata_1 <= 'd0;
-//         axi_wdata_2 <= 'd0;
-//         axi_wdata_3 <= 'd0;
-//         axi_wdata_4 <= 'd0;
-//     end
-//     // else if(state == STATE_WRITE) begin
-//     else  begin
-//         axi_wdata_1 <= axi_wdata;
-//         axi_wdata_2 <= axi_wdata_1;
-//         axi_wdata_3 <= axi_wdata_2;
-//         axi_wdata_4 <= axi_wdata_3;
-//     end 
-// end
 
 always @(posedge clk1) begin
 // always @(posedge clk2) begin
@@ -340,33 +283,25 @@ always @(posedge clk2) begin
     end
 end
 
-// reg [DQ_BITS-1:0] dq_0;
-// reg [DQ_BITS-1:0] dq_1;
-// always @(posedge clk2) begin
-//     if(!rst_n)
-//         {dq_0,dq_1} <= 'dz;
-//     // else if(wr_pipe[WL-1])
-//     // else if(wr_pipe[WL-2])
-//     // else if(wr_pipe_0[WL-3])
-//     else if(wr_pipe_0[WL-2])
-//         // {dq_1, dq_0} <= axi_wdata_3;
-//         {dq_1, dq_0} <= axi_wdata_4;
-// end
-// assign dq = clk2 ?   dq_0:dq_1;
+
+`ifdef FPGA
 assign dq = clk2 ?   axi_wdata_5[15:0] : axi_wdata_5[31:16];
+`else
+assign dq = clk2 ?   axi_wdata_4[15:0] : axi_wdata_4[31:16];
+`endif
 
 always @(posedge clk2) begin
-  if(!rst_n) begin
-    dqm <= 'dz;
-  end
-//   else if(wr_pipe[WL-1])begin
-//   else if(wr_pipe[WL-2])begin
-//   else if(wr_pipe_0[WL-3])begin
-  else if(wr_pipe_0[WL-2])begin
-    dqm <= 2'b00;
-    // dqm <= 1'b0;
-  end else
-    dqm <= 'dz;
+    if(!rst_n) begin
+        dqm <= 'dz;
+    end
+    `ifdef FPGA
+    else if(wr_pipe_0[WL-2])
+    `else
+    else if(wr_pipe_0[WL-3])
+    `endif
+        dqm <= 2'b00;
+    else
+        dqm <= 'dz;
 end
 
 
@@ -374,11 +309,11 @@ reg dq_valid ;
 always @(posedge clk2) begin
     if(!rst_n)
         dq_valid <= 1'b0;
-     // else if(wr_pipe[WL-2] | wr_pipe[WL-1])
-    // else if(wr_pipe[WL-2] | wr_pipe[WL-3])
-    // else if(wr_pipe_0[WL-3] | wr_pipe_0[WL-4])
+    `ifdef FPGA
     else if(wr_pipe_0[WL-2] | wr_pipe_0[WL-3])
-
+    `else
+    else if(wr_pipe_0[WL-3] | wr_pipe_0[WL-4])
+    `endif
         dq_valid <= 1'b1;
     else    
         dq_valid <= 1'b0;
@@ -408,6 +343,8 @@ reg          [DQ_BITS-1:0]      axi_rdata_low;
 reg          [DQ_BITS-1:0]      axi_rdata_h;
 reg        [DQ_BITS*2-1:0]      pre_axi_rdata;
 reg          [7:0]              rd_len;
+reg         [DQ_BITS-1:0]       ddr2_dq_1;
+
 always @(posedge clk1) begin
     if(!rst_n)
         rd_len <= 'd0;
@@ -426,25 +363,23 @@ always @(posedge clk1) begin
         rd_pipe <= {rd_pipe[RL+1:0], 1'b0};
 end
 
-// always @(posedge clk1) begin
-//     if(rd_pipe[RL-1])begin
-//         // axi_rdata_low <= ddr2_dq;
-//         axi_rdata_h <= ddr2_dq;
-//         // pre_axi_rdata <= {ddr2_dq,axi_rdata_low};
-//     end
-// end
-// reg [DQ_BITS-1:0] ddr2_dq_0;
-reg [DQ_BITS-1:0] ddr2_dq_1;
+
 always @(posedge clk1_n) begin
     if(!rst_n) begin
         axi_rdata_low <= 'd0;
-        // ddr2_dq_1 <= 'd0;
+        ddr2_dq_1 <= 'd0;
     end
-    // else if(rd_pipe[RL] ) begin
+    `ifdef FPGA
     else if(rd_pipe[RL+1]) begin
         axi_rdata_low <= ddr2_dq;
-        // ddr2_dq_1 <= axi_rdata_low;
+        ddr2_dq_1 <= axi_rdata_low;
     end
+    `else
+    else if(rd_pipe[RL-1] ) begin
+        axi_rdata_low <= ddr2_dq;
+        ddr2_dq_1 <= axi_rdata_low;
+    end
+    `endif
     // else 
     //     axi_rdata_low <= 'd0;
 end
@@ -452,15 +387,16 @@ end
 
 reg [DQ_BITS*2-1:0] axi_rdata_pre;
 always @(posedge clk1) begin
-    // if( rd_pipe[RL]) 
+    `ifdef FPGA 
     if(rd_pipe[RL+1])
+    `else
+    if( rd_pipe[RL-1]) 
+    `endif
         // axi_rdata <= {ddr2_dq, axi_rdata_low};
         axi_rdata_pre <= {ddr2_dq, axi_rdata_low};
     else
         axi_rdata_pre <= 'd0;
 end
-
-
 
 
 
@@ -535,12 +471,6 @@ always @(posedge clk1) begin
     if(!rst_n) begin
         axi_arready <= 1'b0;
     end else if(~aref_req & (~axi_awvalid))begin
-        // if(state == STATE_IDLE)
-        //     axi_arready <= 1'b1;
-        // else if(same_ba_col_r)
-        //     axi_arready <= &state[2:0];
-        // else 
-        //     axi_arready <= 1'b0;
         axi_arready <= state == STATE_IDLE || (same_ba_col_r & (&state[3:0]));
     end else begin
         axi_arready <= 1'b0;   
@@ -561,25 +491,15 @@ end
 
 assign axi_bvalid = wr_cnt > wr_len + WL ? 1'b1 : 1'b0;
 
-// assign axi_rvalid = rd_pipe[RL+1];   
-// assign axi_rvalid = rd_pipe[RL];  
-
-// always @(posedge clk1) begin
-
-//     if(!rst_n)
-//         axi_rvalid <= 1'b0;
-//     // else if(rd_pipe[RL+1])
-//     else if(rd_pipe[RL])
-//         axi_rvalid <= 1'b1;
-//     else 
-//         axi_rvalid <= 1'b0;
-// end
 reg axi_rvalid_0; 
 always @(posedge clk1) begin
     if(!rst_n)
         axi_rvalid_0 <= 1'b0;
-    // else if(rd_pipe[RL+1])
+    `ifdef FPGA
     else if(rd_pipe[RL+1])
+    `else
+    else if(rd_pipe[RL-1])
+    `endif
         axi_rvalid_0 <= 1'b1;
     else 
         axi_rvalid_0 <= 1'b0;
@@ -592,29 +512,8 @@ always @(posedge clk1) begin
         axi_rvalid <= axi_rvalid_0;
 end
 
-// reg axi_rvalid_0; 
-// always @(posedge clk1) begin
-//     if(!rst_n)
-//         axi_rvalid_0 <= 1'b0;
-//     // else if(rd_pipe[RL+1])
-//     else if(rd_pipe[RL])
-//         axi_rvalid_0 <= 1'b1;
-//     else 
-//         axi_rvalid_0 <= 1'b0;
-// end
-
-// always @(posedge clk1) begin
-//     if(!rst_n)
-//         axi_rvalid <= 1'b0;
-//     else
-//         axi_rvalid <= axi_rvalid_0;
-// end
-
-// wire test;
-// assign test = wr_cnt >= wr_len + WL + WTR;
 
 
-// always @(posedge clk or negedge rst_n) begin
 always @(posedge clk1 or negedge rst_n) begin
     if(!rst_n) begin
         state <= STATE_INIT;
@@ -625,7 +524,6 @@ always @(posedge clk1 or negedge rst_n) begin
         row_addr <= 'd0;
         init_col_addr <= 0;
         wr_or_rd_to_aref <= 2'b00;
-        act_cnt <= WL + 'd2;
         wr_cnt <= 'd0;
         // axi_awready_1 <= 1'b0;
     end else begin
@@ -641,8 +539,7 @@ always @(posedge clk1 or negedge rst_n) begin
                     cmd <= NOP;
                     ref_cnt <= 8'd0;
                 end
-                else if(axi_awvalid) begin 
-                    act_cnt <= 'd0;    
+                else if(axi_awvalid) begin    
                     wr_en <= 1'b1;  
                     cmd <= ACT;
                     {ba, addr} <= axi_awaddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
@@ -651,7 +548,6 @@ always @(posedge clk1 or negedge rst_n) begin
                     state <= STATE_ACT;
                 end 
                 else if(axi_arvalid) begin
-                    act_cnt <= 'd0;
                     wr_en <= 1'b0;
                     cmd <= ACT;
                     {ba, addr} <= axi_araddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
@@ -668,24 +564,7 @@ always @(posedge clk1 or negedge rst_n) begin
                 case(ref_cnt)
                     0:          begin cmd <= PRE; addr <= ALLPRE_ADDR;end
                     RPA:        cmd <= AREF;
-                    RPA+RFC:begin  
-                //                         if(wr_or_rd_to_aref == 2'b00) 
-                //     state <= STATE_IDLE;
-                // else if(wr_or_rd_to_aref == 2'b01) begin  
-                //     cmd <= ACT;
-                //     {ba, addr} <= axi_awaddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
-                //     row_addr <= axi_awaddr[ROW_BITS+COL_BITS-1:COL_BITS];
-                //     init_col_addr <= axi_awaddr[COL_BITS-1:2];
-                //     state <= STATE_RETURNWR;
-                //     act_cnt <= 'd0;
-                // end else begin
-                //     cmd <= ACT;
-                //     {ba, addr} <= axi_araddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
-                //     row_addr <= axi_araddr[ROW_BITS+COL_BITS-1:COL_BITS];
-                //     init_col_addr <= axi_araddr[COL_BITS-1:2];
-                //     state <= STATE_RETURNRD;
-                //     act_cnt <= 'd0;
-                // end   
+                    RPA+RFC:begin   
                         state <= STATE_AREFOVER;
                     end
                     default:    cmd <= NOP;
@@ -701,20 +580,16 @@ always @(posedge clk1 or negedge rst_n) begin
                     row_addr <= axi_awaddr[ROW_BITS+COL_BITS-1:COL_BITS];
                     init_col_addr <= axi_awaddr[COL_BITS-1:2];
                     state <= STATE_RETURNWR;
-                    act_cnt <= 'd0;
                 end else begin
                     cmd <= ACT;
                     {ba, addr} <= axi_araddr[BA_BITS+ROW_BITS+COL_BITS-1:COL_BITS];
                     row_addr <= axi_araddr[ROW_BITS+COL_BITS-1:COL_BITS];
                     init_col_addr <= axi_araddr[COL_BITS-1:2];
                     state <= STATE_RETURNRD;
-                    act_cnt <= 'd0;
                 end                
             end
 
             STATE_ACT: begin
-                // act_cnt <= act_cnt + 'd1;
-                // if(act_cnt == 'd0 ) begin
                     if(wr_en) begin
                         state <= STATE_WRITE;
                         // wr_cnt <= 'd0;
@@ -733,9 +608,6 @@ always @(posedge clk1 or negedge rst_n) begin
             end
 
             STATE_WRITE: begin 
-
-                // if(act_cnt < WL + 'd2)
-                //     act_cnt <= act_cnt + 'd1;
                 // ------------------------------------------------------------------------------------------
                 // 当写数据突发长度较长，在写数据时，数据刷新请求到来，需要先保存当前状态，再去执行刷新，然后再回来
                 // ------------------------------------------------------------------------------------------
@@ -745,22 +617,9 @@ always @(posedge clk1 or negedge rst_n) begin
                     state <= STATE_WROVER;  
                     cmd <= NOP;
                 end
-                // else if(pre_wr_to_aref) begin
-                //     wr_cnt_history <= wr_cnt+1;
-                //     wr_cnt <= wr_len + 1;
-                //     state <= STATE_WRTOAREF;
-                //     to_aref_cnt <= 'd0;
-                //     wr_or_rd_to_aref <= 2'b01;
-                // end 
-                // else if(axi_wvalid ) begin
-                //     if(wr_cnt[0] == 1'b0) begin
-                //         cmd <= WRITE;
-                //         addr <= {init_col_addr + (wr_cnt >> 1), 2'b0};
-                //     end else
-                //         cmd <= NOP;
-                // end 
                 else if(wr_cnt[0] == 1'b0) begin
-                    if(aref_req & (wr_cnt < wr_len - Threshold )) begin
+                    // if(aref_req & (wr_cnt < wr_len - Threshold )) begin
+                    if(aref_req ) begin
                         wr_cnt_history <= wr_cnt+1;
                         wr_cnt <= wr_len + 1;
                         state <= STATE_WRTOAREF0;
@@ -796,8 +655,6 @@ always @(posedge clk1 or negedge rst_n) begin
             end
 
             STATE_RETURNWR:begin
-                // act_cnt <= act_cnt + 'd1;
-                // if(act_cnt == 'd1) begin
                     cmd <= WRITE;
                     state <= STATE_WRITE;
                     wr_cnt <= wr_cnt_history;
@@ -884,9 +741,10 @@ always @(posedge clk1 or negedge rst_n) begin
                     cmd <= NOP;
                 end
                 else if(rd_cnt[0] == 1'b0) begin
-                    if(aref_req & (rd_cnt < rd_len - Threshold)) begin
+                    // if(aref_req & (rd_cnt < rd_len - Threshold)) begin
+                    if(aref_req ) begin
                         // state <= STATE_RDTOAREF;
-                        cmd <= NOP;
+                        // cmd <= NOP;
                         state <= STATE_RDTOAREF0;
                         // to_aref_cnt <= 'd0;
                         // wr_or_rd_to_aref <= 2'b10;     
@@ -927,15 +785,9 @@ always @(posedge clk1 or negedge rst_n) begin
                 if(rd_cnt < rd_len + Delay_RD_TO_PRE)
                     rd_cnt <= rd_cnt + 1;
                 if(same_to_wr) begin
-                    // wr_cnt <= 'd0;
-                    // init_col_addr <= axi_awaddr[COL_BITS-1:2];
-                    // state <= STATE_WRITE;
                     state <= STATE_TOWR;
                 end 
                 else if(same_to_rd) begin
-                    // rd_cnt <= 'd0;
-                    // init_col_addr <= axi_araddr[COL_BITS-1:2];
-                    // state <= STATE_READ;
                     state <= STATE_RDTORD;
                 end 
                 // else if(axi_arvalid | axi_awvalid | aref_req) begin
@@ -972,8 +824,10 @@ assign ddr2_ba = state == STATE_INIT ? init_ba : ba;
 assign ddr2_addr = state == STATE_INIT ? init_addr : addr;
 assign  ddr2_cke = init_cke;
 
-wire clk1_buf;
 
+
+/*用于处理传输给外部器件用的 clk */
+wire clk1_buf;
 ODDR #(
    .DDR_CLK_EDGE("OPPOSITE_EDGE"), // "OPPOSITE_EDGE" or "SAME_EDGE" 
    .INIT(1'b0),    // Initial value of Q: 1'b0 or 1'b1
@@ -988,6 +842,9 @@ ODDR #(
    .S(1'b0)    // 1-bit set
 );
 
+/*生成差分信号的原语*/
+
+`ifdef FPGA
 OBUFDS #(
    .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
    .SLEW("SLOW")           // Specify the output slew rate
@@ -995,8 +852,17 @@ OBUFDS #(
    .O(ddr2_clk_p),     // Diff_p output (connect directly to top-level port)
    .OB(ddr2_clk_n),   // Diff_n output (connect directly to top-level port)
    .I(clk1_buf)      // Buffer input
-//    .I(clk1)      // Buffer input
 );
+`else
+OBUFDS #(
+   .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
+   .SLEW("SLOW")           // Specify the output slew rate
+) OBUFDS_inst_clk (
+   .O(ddr2_clk_p),     // Diff_p output (connect directly to top-level port)
+   .OB(ddr2_clk_n),   // Diff_n output (connect directly to top-level port)
+   .I(clk1)      // Buffer input
+);
+`endif
 
 
 
@@ -1017,13 +883,7 @@ OBUFDS #(
    .I(ddr2_dqs[1])      // Buffer input
 );
 
-// reg ddr2_dqs_test;
-// always @(posedge clk1) begin
-//     if(!rst_n)
-//         ddr2_dqs_test;
-//     else
-//         ddr2_dqs_test <= ddr2_dqs_p;
-// end
+
 
 
 ddr2_init ddr2_init_inst(
@@ -1037,11 +897,8 @@ ddr2_init ddr2_init_inst(
     .ddr2_odt                   (ddr2_odt),
     .init_end                   (init_end)
 );
-// wire clk_probe;  
-// assign clk_probe = ~clk;
 
-// wire [3:0] dqs;
-// assign dqs = {ddr2_dqs_p, ddr2_dqs_n};
+/*使用 ila */
 
 reg [9:0]axi_addr;
 always @(posedge clk1) begin
@@ -1051,21 +908,6 @@ always @(posedge clk1) begin
         axi_addr <= axi_araddr[9:0];
 end
 
-
-// reg [DQ_BITS*2-1:0] axi_rdata_next;
-// wire [DQ_BITS*2-1:0] axi_rdata_next_w;
-// reg [DQ_BITS*2-1:0] axi_rdata_next_r;
-// assign axi_rdata_next_w = axi_rdata_next;
-// always @(posedge clk1) begin
-//     if(!rst_n) begin 
-//         axi_rdata_next <= 'd0;
-//         axi_rdata_next_r <= 'd0;
-//     end
-//     else begin
-//         axi_rdata_next <= axi_rdata_pre;
-//         axi_rdata_next_r <= axi_rdata_next;
-//     end
-// end
 
 reg [DQ_BITS*2-1:0] axi_rdata_reg;
 assign axi_rdata = axi_rdata_reg;
@@ -1085,31 +927,21 @@ always @(posedge clk1) begin
         axi_rdata_1 <= axi_rdata;
 end
 
-// reg [DQ_BITS*2-1:0]  axi_wdata_1ila;
-// always @(posedge clk1) begin
-//     if(!rst_n)
-//         axi_wdata_1ila <= 'd0;
-//     else 
-//         axi_wdata_1ila <= axi_wdata;
-// end
 
 
-// ila_0 your_instance_name (
-// 	// .clk(clk2), // input wire clk
-// 	.clk(clk1), // input wire clk
+ila_0 your_instance_name (
+	// .clk(clk2), // input wire clk
+	.clk(clk1), // input wire clk
 
 
-// 	// .probe0(state), // input wire [4:0]  probe0  
-// 	.probe0(axi_rdata_1), // input wire [15:0]  probe0  
-// 	// .probe0(16'd0), // input wire [15:0]  probe0  
-// 	// .probe1(axi_wdata_1ila[15:0]),// input wire [15:0]  probe1
-// 	// .probe1(dq_0),// input wire [15:0]  probe1
-// 	.probe1(16'd0),// input wire [15:0]  probe1
-// 	// .probe1(ddr2_dq_1),// input wire [15:0]  probe1
-//     .probe2(cmd)
-// );
+	// .probe0(state), // input wire [4:0]  probe0  
+	// .probe0(axi_rdata_1), // input wire [15:0]  probe0  
+	.probe0(16'd0), // input wire [15:0]  probe0  
+	// .probe1(16'd0),// input wire [15:0]  probe1
+	.probe1(ddr2_dq_1),// input wire [15:0]  probe1
+    .probe2(cmd)
+);
 
 endmodule
-
 
 
