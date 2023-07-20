@@ -1,6 +1,4 @@
-
-// 
-// (c) Copyright 2008 - 2013 Xilinx, Inc. All rights reserved.
+// (c) Copyright 1995-2023 Xilinx, Inc. All rights reserved.
 // 
 // This file contains confidential and proprietary information
 // of Xilinx, Inc. and is protected under U.S. and
@@ -46,37 +44,36 @@
 // THIS COPYRIGHT NOTICE AND DISCLAIMER MUST BE RETAINED AS
 // PART OF THIS FILE AT ALL TIMES.
 // 
-//----------------------------------------------------------------------------
-// User entered comments
-//----------------------------------------------------------------------------
-// None
-//
-//----------------------------------------------------------------------------
-//  Output     Output      Phase    Duty Cycle   Pk-to-Pk     Phase
-//   Clock     Freq (MHz)  (degrees)    (%)     Jitter (ps)  Error (ps)
-//----------------------------------------------------------------------------
-// clk_out1___200.000______0.000______50.0______126.455____114.212
-// clk_out2___400.000____180.000______50.0______111.164____114.212
-//
-//----------------------------------------------------------------------------
-// Input Clock   Freq (MHz)    Input Jitter (UI)
-//----------------------------------------------------------------------------
-// __primary_________100.000____________0.010
+// DO NOT MODIFY THIS FILE.
+
+// IP VLNV: xilinx.com:ip:fifo_generator:13.2
+// IP Revision: 3
 
 // The following must be inserted into your Verilog file for this
 // core to be instantiated. Change the instance name and port connections
 // (in parentheses) to your own signal names.
 
 //----------- Begin Cut here for INSTANTIATION Template ---// INST_TAG
-
-  clk_wiz_0 instance_name
-   (
-    // Clock out ports
-    .clk_out1(clk_out1),     // output clk_out1
-    .clk_out2(clk_out2),     // output clk_out2
-    // Status and control signals
-    .reset(reset), // input reset
-    .locked(locked),       // output locked
-   // Clock in ports
-    .clk_in1(clk_in1));      // input clk_in1
+fifo_generator_0 your_instance_name (
+  .rst(rst),                      // input wire rst
+  .wr_clk(wr_clk),                // input wire wr_clk
+  .rd_clk(rd_clk),                // input wire rd_clk
+  .din(din),                      // input wire [7 : 0] din
+  .wr_en(wr_en),                  // input wire wr_en
+  .rd_en(rd_en),                  // input wire rd_en
+  .dout(dout),                    // output wire [31 : 0] dout
+  .full(full),                    // output wire full
+  .almost_full(almost_full),      // output wire almost_full
+  .empty(empty),                  // output wire empty
+  .almost_empty(almost_empty),    // output wire almost_empty
+  .rd_data_count(rd_data_count),  // output wire [5 : 0] rd_data_count
+  .wr_data_count(wr_data_count),  // output wire [7 : 0] wr_data_count
+  .wr_rst_busy(wr_rst_busy),      // output wire wr_rst_busy
+  .rd_rst_busy(rd_rst_busy)      // output wire rd_rst_busy
+);
 // INST_TAG_END ------ End INSTANTIATION Template ---------
+
+// You must compile the wrapper file fifo_generator_0.v when simulating
+// the core, fifo_generator_0. When compiling the wrapper file, be sure to
+// reference the Verilog simulation library.
+

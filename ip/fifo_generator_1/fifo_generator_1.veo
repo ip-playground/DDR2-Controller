@@ -54,22 +54,24 @@
 // (in parentheses) to your own signal names.
 
 //----------- Begin Cut here for INSTANTIATION Template ---// INST_TAG
-wr_fifo your_instance_name (
-  .clk(clk),                    // input wire clk
-  .srst(srst),                  // input wire srst
-  .din(din),                    // input wire [31 : 0] din
-  .wr_en(wr_en),                // input wire wr_en
-  .rd_en(rd_en),                // input wire rd_en
-  .dout(dout),                  // output wire [31 : 0] dout
-  .full(full),                  // output wire full
-  .almost_full(almost_full),    // output wire almost_full
-  .empty(empty),                // output wire empty
-  .almost_empty(almost_empty),  // output wire almost_empty
-  .data_count(data_count)      // output wire [10 : 0] data_count
+fifo_generator_1 your_instance_name (
+  .rst(rst),                      // input wire rst
+  .wr_clk(wr_clk),                // input wire wr_clk
+  .rd_clk(rd_clk),                // input wire rd_clk
+  .din(din),                      // input wire [31 : 0] din
+  .wr_en(wr_en),                  // input wire wr_en
+  .rd_en(rd_en),                  // input wire rd_en
+  .dout(dout),                    // output wire [7 : 0] dout
+  .full(full),                    // output wire full
+  .empty(empty),                  // output wire empty
+  .rd_data_count(rd_data_count),  // output wire [7 : 0] rd_data_count
+  .wr_data_count(wr_data_count),  // output wire [5 : 0] wr_data_count
+  .wr_rst_busy(wr_rst_busy),      // output wire wr_rst_busy
+  .rd_rst_busy(rd_rst_busy)      // output wire rd_rst_busy
 );
 // INST_TAG_END ------ End INSTANTIATION Template ---------
 
-// You must compile the wrapper file wr_fifo.v when simulating
-// the core, wr_fifo. When compiling the wrapper file, be sure to
+// You must compile the wrapper file fifo_generator_1.v when simulating
+// the core, fifo_generator_1. When compiling the wrapper file, be sure to
 // reference the Verilog simulation library.
 
