@@ -20,7 +20,9 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module  uart_tx 
+module  uart_tx #(
+    parameter   BAUD_CNT_MAX = 5207
+)
 (
     input   wire             clk     ,
     input   wire             reset_n   ,
@@ -30,7 +32,7 @@ module  uart_tx
     output  reg              tx_out
 );
 
-parameter   BAUD_CNT_MAX = 5207;
+// parameter   BAUD_CNT_MAX = 5207;
 // parameter   BAUD_CNT_MAX = 56;
 
 reg             work_en     ;

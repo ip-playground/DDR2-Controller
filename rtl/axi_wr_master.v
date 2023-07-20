@@ -52,8 +52,8 @@ reg     [7:0]   wr_data_cnt;
 //state_w
 parameter   IDLE    = 3'b000;
 parameter   START   = 3'b001;
-parameter   AW      = 3'b011;
-parameter   W       = 3'b010;   
+parameter   AWR     = 3'b011;
+parameter   WR      = 3'b010;   
 parameter   B       = 3'b110;
 parameter   DONE    = 3'b100;
 
@@ -93,17 +93,17 @@ always @(posedge clk) begin
                 end
             end
             START:
-                state_w <= AW;
-            AW:begin
+                state_w <= AWR;
+            AWR:begin
                 if(axi_awready) begin
-                    state_w <= W;
+                    state_w <= WR;
                     axi_awvalid <= 1'b0;
                     axi_wvalid <= 1'b1;                    
                     wr_data_cnt <= wr_len - 'd1;
                 end
             end
 
-            W:begin
+            WR:begin
                 if(axi_wready) begin
                     if(wr_data_cnt == 8'd0) begin
                         state_w <= B;
@@ -146,6 +146,18 @@ always @(posedge clk) begin
 end
 assign wr_data_en = wr_data_en_reg;
 // assign wr_data_en = axi_wready & axi_wvalid;
+
+// ila_rd your_instance_name (
+// 	.clk(clk), // input wire clk
+
+// 	// .probe0(diff_data_1[15:0]), // input wire [15:0]  probe0  
+// 	// .probe0(diff_data_2[15:0]), // input wire [15:0]  probe0  
+// 	.probe0(16'd0), // input wire [15:0]  probe0  
+// 	// .probe1(axi_rdata_1[15:0]), // input wire [15:0]  probe1 
+// 	.probe1(wr_data[15:0]), // input wire [15:0]  probe1 
+// 	// .probe1(16'd0), // input wire [15:0]  probe1 
+// 	.probe2(wr_data_en) // input wire [0:0]  probe2
+// );
 
 
 endmodule

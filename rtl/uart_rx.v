@@ -20,7 +20,9 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module  uart_rx 
+module  uart_rx #(
+    parameter   BAUD_CNT_MAX = 5207
+)
 (
     input   wire            clk     ,
     input   wire            reset_n   ,
@@ -30,7 +32,7 @@ module  uart_rx
     output  reg             valid 
 );
 
-parameter   BAUD_CNT_MAX = 5207;
+// parameter   BAUD_CNT_MAX = 5207;
 // parameter   BAUD_CNT_MAX = 54;
 
 reg             rx_reg1         ;

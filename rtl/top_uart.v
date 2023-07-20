@@ -33,7 +33,10 @@ module top_uart #(
     parameter           DATA_WIDTH  = DQ_BITS * 2,
     parameter           DATA_LEVEL  = 2,
     parameter   [7:0]   WBURST_LEN   = 8'd8,
-    parameter   [7:0]   RBURST_LEN   = 8'd8
+    parameter   [7:0]   RBURST_LEN   = 8'd8,
+    parameter           BAUD_CNT_MAX_TX = 5207,
+    parameter           BAUD_CNT_MAX_RX = 5207,
+    parameter           BAUD_CNT_MAX_X10 = 52070
 )
 (
     input                         sys_clk,
@@ -133,15 +136,15 @@ wire                        rd_done;
 
 
 
-wire [7:0] uart_data;
-wire uart_valid;
+wire [7:0] rx_data_out;
+wire rx_data_valid_out;
 wire data_valid_out;
 wire [7:0] data_out;
 wire [25:0] address_out;
 wire read_cmd_out;
 wire write_cmd_out;
-reg [7:0] data_in;
-reg data_valid_in;
+reg [7:0] tx_data_in;
+reg tx_data_valid_in;
 
 wire uart_clk_buf;
 wire uart_clk;
@@ -162,21 +165,26 @@ wire uart_clk;
 // OBUF OBUF_uart(.I(uart_clk_buf),.O(uart_clk));
 OBUF OBUF_uart(.I(clk100m),.O(uart_clk));
 
-uart_rx uart_receiver (
+uart_rx #(
+   .BAUD_CNT_MAX(BAUD_CNT_MAX_RX) 
+)
+uart_receiver (
     // .clk(uart_clk),
     .clk(clk100m),
     .reset_n(rst_n),
     .rx(uart_rx),
-    .data(uart_data),
-    .valid(uart_valid)
+    .data(rx_data_out),
+    .valid(rx_data_valid_out)
 );
 
-uart_tx uart_sender (
+uart_tx  #(
+   .BAUD_CNT_MAX(BAUD_CNT_MAX_TX) 
+)uart_sender (
     // .clk(uart_clk),
     .clk(clk100m),
     .reset_n(rst_n),
-    .tx_en(data_valid_in),
-    .tx_data(data_in),
+    .tx_en(tx_data_valid_in),
+    .tx_data(tx_data_in),
     .tx_out(uart_tx)
 );
 
@@ -184,14 +192,18 @@ command_parser cmd_parser (
     // .clk(uart_clk),
     .clk(clk100m),
     .reset_n(rst_n),
-    .data_in(uart_data),
-    .valid_in(uart_valid),
+    .data_in(rx_data_out),
+    .valid_in(rx_data_valid_out),
     .address(address_out),
     .data(data_out),
     .data_valid(data_valid_out),
     .read_cmd(read_cmd_out),
     .write_cmd(write_cmd_out)
 );
+
+
+/*  WRITE  */
+
 
 assign wr_len = 'd4;
 assign rd_len = 'd4;
@@ -323,20 +335,20 @@ always @(posedge clk1) begin
 end
 
 
-
+/*   READ   */
 
 reg rd_req;
 wire [7:0] rfifo_dout;
 wire rfifo_empty;  
 reg [4:0] rdata_cnt;
 reg [16:0] rd_baud_cnt;
-// parameter BAUD_CNT_MAX  =   550;
-parameter BAUD_CNT_MAX  =   52070;
+// parameter BAUD_CNT_MAX_X10  =   550;
+// parameter BAUD_CNT_MAX_X10  =   BAUD_CNT_MAX * 10;
 reg rfifo_rd_work_en;
 wire rfifo_rd_en;
 wire [5:0] rfifo_wr_data_count;
 
-assign rfifo_rd_en = rd_baud_cnt == BAUD_CNT_MAX/2;
+assign rfifo_rd_en = rd_baud_cnt == BAUD_CNT_MAX_X10/2;
 
 fifo_generator_1 rfifo (
   .rst(!rst_n),                      // input wire rst
@@ -413,7 +425,7 @@ always@(posedge clk100m)
 always @(posedge clk100m) begin
     if(~rst_n)
         rd_baud_cnt <= 14'd0;
-    else    if((rfifo_rd_work_en == 1'b0) || (rd_baud_cnt == BAUD_CNT_MAX - 1))
+    else    if((rfifo_rd_work_en == 1'b0) || (rd_baud_cnt == BAUD_CNT_MAX_X10 - 1))
         rd_baud_cnt <= 14'd0;
     else    if(rfifo_rd_work_en == 1'b1)
         rd_baud_cnt <= rd_baud_cnt + 1'b1;
@@ -421,15 +433,15 @@ end
 
 always @(posedge clk100m) begin
     if(~rst_n) begin;
-        data_in <= 'd0;
-        data_valid_in <= 1'b0;
+        tx_data_in <= 'd0;
+        tx_data_valid_in <= 1'b0;
     end
     else if(rdata_cnt > 0)begin
-         if(rd_baud_cnt == BAUD_CNT_MAX - 2)begin
-            data_valid_in <= 1'b1;
-            data_in <= rfifo_dout;
+         if(rd_baud_cnt == BAUD_CNT_MAX_X10 - 2)begin
+            tx_data_valid_in <= 1'b1;
+            tx_data_in <= rfifo_dout;
         end else 
-            data_valid_in <= 1'b0;
+            tx_data_valid_in <= 1'b0;
     end
 end    
 
@@ -439,7 +451,7 @@ always @(posedge clk100m) begin
         rdata_cnt <= 'd0;
     else if(~rfifo_empty && (rdata_cnt == 'd0))
         rdata_cnt <= (rd_len << 2); 
-    else if(rd_baud_cnt == BAUD_CNT_MAX - 1)
+    else if(rd_baud_cnt == BAUD_CNT_MAX_X10 - 1)
         rdata_cnt <= rdata_cnt - 'd1;
 end
 
@@ -474,13 +486,13 @@ clk_wiz_1 clk_wiz_1_inst(
     // Clock out ports
     .clk_out1(clk1),     // output clk_out1  主时钟
     .clk_out2(clk1_n),     // output clk_out2
-    .clk_out3(clk2),     // output clk_out3   写数据用
+    .clk_out3(clk2),     // output clk_out3   写数据用   
     // .clk_out5(clk2),     // output clk_out5
     // Status and control signals
     .reset(!rst_n), // input reset
     .locked(locked),       // output locked
    // Clock in ports
-    .clk_in1(clk100m)
+    .clk_in1(sys_clk)
 );      // input clk_in1
 
 

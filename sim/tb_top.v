@@ -150,7 +150,12 @@ task rx_bit;
     end   
 endtask
 
-top_uart top_uart_inst (
+top_uart #(
+    .BAUD_CNT_MAX_TX (56),
+    .BAUD_CNT_MAX_RX (54),
+    .BAUD_CNT_MAX_X10 (550)
+)
+ top_uart_inst (
 .sys_clk                (clk100m),
 .sys_rst_n              (rst_n),
 .uart_rx                (uart_rx),
